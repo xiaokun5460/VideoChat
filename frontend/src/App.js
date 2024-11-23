@@ -33,6 +33,7 @@ function App() {
     const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
     const [pageSize, setPageSize] = useState(5); // 默认每页显示5个文件
     const [currentPage, setCurrentPage] = useState(1); // 添加当前页码状态
+    const [abortTranscribing, setAbortTranscribing] = useState(false); // 添加停止转录状态
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
@@ -97,7 +98,7 @@ function App() {
 
         setUploadedFiles(prev => [...prev, newFile]);
 
-        // 如果是第一个文件，��动设置为当前预览文件
+        // 如果是第一个文件，动设置为当前预览文件
         if (uploadedFiles.length === 0) {
             setCurrentFile(newFile);
             setMediaUrl({ url, type: isVideo ? 'video' : 'audio' });
@@ -135,7 +136,7 @@ function App() {
         return uploadedFiles.slice(start, end);
     };
 
-    // 文件列表列定义
+    // 文件列表列定
     const fileColumns = [
         {
             title: '文件名',
@@ -159,6 +160,7 @@ function App() {
                     case 'transcribing': return <><SyncOutlined spin /> 转录中</>;
                     case 'done': return <span style={{ color: '#52c41a' }}>已完成</span>;
                     case 'error': return <span style={{ color: '#ff4d4f' }}>失败</span>;
+                    case 'interrupted': return <span style={{ color: '#faad14' }}>转录中断</span>;
                     default: return status;
                 }
             },
@@ -171,10 +173,11 @@ function App() {
                     type="text"
                     danger
                     onClick={(e) => {
-                        e.stopPropagation();  // 阻止事件冒泡
+                        e.stopPropagation();
                         handleFileDelete(record.id);
                     }}
                     icon={<DeleteOutlined />}
+                    disabled={record.status === 'transcribing'}
                 >
                     删除
                 </Button>
@@ -219,68 +222,117 @@ function App() {
         }
     };
 
-    // 处理批量转录
+    // 修改批量转录函数
     const handleBatchTranscribe = async () => {
+        if (isTranscribing) {
+            setIsTranscribing(false);  // 立即更新状态
+            setAbortTranscribing(true);
+
+            try {
+                const response = await fetch('http://localhost:8000/api/stop-transcribe', {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    throw new Error('停止转录失败');
+                }
+
+                // 将正在转录的文件状态改为中断
+                setUploadedFiles(prev => prev.map(f =>
+                    f.status === 'transcribing'
+                        ? { ...f, status: 'interrupted' }
+                        : f
+                ));
+
+                message.success('已停止转录');
+            } catch (error) {
+                console.error('Failed to stop transcription:', error);
+                message.error('停止转录失败：' + error.message);
+            } finally {
+                setAbortTranscribing(false);
+            }
+            return;
+        }
+
         if (selectedFiles.length === 0) {
             message.warning('请选择需要转录的文件');
             return;
         }
 
         setIsTranscribing(true);
+        setAbortTranscribing(false);
         message.loading('开始转录选中的文件...', 0);
 
         try {
             for (const fileId of selectedFiles) {
+                // 只检查 abortTranscribing 状态
+                if (abortTranscribing) {
+                    // 将未开始和正在转录的文件状态改为中断
+                    setUploadedFiles(prev => prev.map(f =>
+                        selectedFiles.includes(f.id) &&
+                            (f.status === 'waiting' || f.status === 'transcribing')
+                            ? { ...f, status: 'interrupted' }
+                            : f
+                    ));
+                    break;
+                }
+
                 const file = uploadedFiles.find(f => f.id === fileId);
                 if (!file) continue;
 
-                // 如果文件已经转录完成，跳过并提示
                 if (file.status === 'done') {
                     message.info(`文件 "${file.name}" 已经转录完成，跳过此文件。`);
                     continue;
                 }
 
-                // 更新文状态
                 setUploadedFiles(prev => prev.map(f =>
                     f.id === fileId ? { ...f, status: 'transcribing' } : f
                 ));
 
-                const formData = new FormData();
-                formData.append('file', file.file, file.name);
+                try {
+                    const formData = new FormData();
+                    formData.append('file', file.file, file.name);
 
-                const response = await fetch('http://localhost:8000/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
+                    const response = await fetch('http://localhost:8000/api/upload', {
+                        method: 'POST',
+                        body: formData,
+                    });
 
-                if (!response.ok) {
-                    throw new Error(`转录失败: ${file.name}`);
-                }
+                    if (!response.ok) {
+                        throw new Error(`转录失败: ${file.name}`);
+                    }
 
-                const data = await response.json();
+                    const data = await response.json();
 
-                // 更新文件状态和转录结果
-                setUploadedFiles(prev => prev.map(f =>
-                    f.id === fileId ? {
-                        ...f,
-                        status: 'done',
-                        transcription: data.transcription
-                    } : f
-                ));
+                    if (!abortTranscribing) {  // 添加检查，确保没有中断请求
+                        setUploadedFiles(prev => prev.map(f =>
+                            f.id === fileId ? {
+                                ...f,
+                                status: 'done',
+                                transcription: data.transcription
+                            } : f
+                        ));
 
-                // 如果是当前预览的文件，更新转录显示
-                if (currentFile?.id === fileId) {
-                    setTranscription(data.transcription);
+                        if (currentFile?.id === fileId) {
+                            setTranscription(data.transcription);
+                        }
+                    }
+                } catch (error) {
+                    if (!abortTranscribing) {  // 添加检查，确保没有中断请求
+                        setUploadedFiles(prev => prev.map(f =>
+                            f.id === fileId ? { ...f, status: 'error' } : f
+                        ));
+                        message.error(`文件 "${file.name}" 转录失败：${error.message}`);
+                    }
                 }
             }
-
-            message.success('所有选中文件转录完成！');
         } catch (error) {
             console.error('Transcription failed:', error);
             message.error('转录失败：' + error.message);
         } finally {
             setIsTranscribing(false);
-            message.destroy(); // 清除loading消息
+            setAbortTranscribing(false);
+            message.destroy();
         }
     };
 
@@ -421,7 +473,7 @@ function App() {
             }
 
             const data = await response.json();
-            setMindmapData(data.mindmap);  // 设置新数据
+            setMindmapData(data.mindmap);  // 设置数据
         } catch (error) {
             console.error('Failed to generate mindmap:', error);
             message.error('生成思维导图失败：' + error.message);
@@ -500,7 +552,7 @@ function App() {
         if (isGenerating) {
             abortController.current?.abort();
             setIsGenerating(false);
-            // 更新最后一条消息为"已停止生成"
+            // 更新最后一条��息为"已停止生成"
             setMessages(prevMessages => {
                 const newMessages = [...prevMessages];
                 if (newMessages.length > 0) {
@@ -684,7 +736,7 @@ function App() {
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
 
-                    message.success(`文件 "${file.name}" 导出成��`);
+                    message.success(`文件 "${file.name}" 导出成`);
                 } catch (error) {
                     message.error(`文件 "${file.name}" 导出失败：${error.message}`);
                 }
@@ -703,7 +755,7 @@ function App() {
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setDetailedSummary(''); // ���空现有总结
+            setDetailedSummary(''); // 空现有总结
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -839,6 +891,13 @@ function App() {
         message.success('已删除选中的文件');
     };
 
+    // 添加一个函数来计算选中的已转录文件数量
+    const getSelectedTranscribedFilesCount = () => {
+        return uploadedFiles.filter(file =>
+            selectedFiles.includes(file.id) && file.status === 'done'
+        ).length;
+    };
+
     // 修改标签页内容
     const tabItems = [
         {
@@ -849,7 +908,12 @@ function App() {
                     <div className="section-header">
                         <div className="section-title">
                             <h3>转录结果</h3>
-                            {isTranscribing && (
+                            <div className="selection-tip">
+                                {selectedFiles.length > 0 && (
+                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
+                                )}
+                            </div>
+                            {isTranscribing && !abortTranscribing && (
                                 <div className="transcription-progress">
                                     <SyncOutlined spin />
                                     <span>正在转录中...</span>
@@ -861,37 +925,47 @@ function App() {
                                 <Button
                                     onClick={() => handleExport('vtt')}
                                     icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
+                                    disabled={!currentFile?.transcription}
                                 >
                                     VTT
                                 </Button>
                                 <Button
                                     onClick={() => handleExport('srt')}
                                     icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
+                                    disabled={!currentFile?.transcription}
                                 >
                                     SRT
                                 </Button>
                                 <Button
                                     onClick={() => handleExport('txt')}
                                     icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
+                                    disabled={!currentFile?.transcription}
                                 >
                                     TXT
                                 </Button>
                             </Button.Group>
                         </div>
                     </div>
-                    <Table
-                        dataSource={transcription.map((item, index) => ({
-                            ...item,
-                            key: index,
-                        }))}
-                        columns={transcriptionColumns}
-                        pagination={false}
-                        size="small"
-                        className="transcription-table full-height"
-                    />
+                    {!currentFile ? (
+                        <div className="empty-state">
+                            <p>请在左侧选择要查看转录结果的文件</p>
+                        </div>
+                    ) : !currentFile.transcription ? (
+                        <div className="empty-state">
+                            <p>当前文件尚未完成转录</p>
+                        </div>
+                    ) : (
+                        <Table
+                            dataSource={currentFile.transcription.map((item, index) => ({
+                                ...item,
+                                key: index,
+                            }))}
+                            columns={transcriptionColumns}
+                            pagination={false}
+                            size="small"
+                            className="transcription-table full-height"
+                        />
+                    )}
                 </div>
             ),
         },
@@ -900,10 +974,20 @@ function App() {
             label: '简单总结',
             children: (
                 <div className="tab-content">
+                    <div className="section-header">
+                        <div className="section-title">
+                            <h3>简单总结</h3>
+                            <div className="selection-tip">
+                                {selectedFiles.length > 0 && (
+                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     <div className="button-group">
                         <Button
                             onClick={handleSummary}
-                            disabled={!transcription || transcription.length === 0}
+                            disabled={selectedFiles.length === 0}
                         >
                             生成总结
                         </Button>
@@ -915,14 +999,15 @@ function App() {
                             导出总结
                         </Button>
                     </div>
-                    {(!transcription || transcription.length === 0) && (
+                    {selectedFiles.length === 0 ? (
                         <div className="empty-state">
-                            <p>需等待视频/音频完成转录</p>
+                            <p>请在左侧选择需要生成总结的文件</p>
+                        </div>
+                    ) : (
+                        <div className="markdown-content">
+                            <ReactMarkdown>{summary}</ReactMarkdown>
                         </div>
                     )}
-                    <div className="markdown-content">
-                        <ReactMarkdown>{summary}</ReactMarkdown>
-                    </div>
                 </div>
             ),
         },
@@ -931,10 +1016,20 @@ function App() {
             label: '详细总结',
             children: (
                 <div className="tab-content">
+                    <div className="section-header">
+                        <div className="section-title">
+                            <h3>详细总结</h3>
+                            <div className="selection-tip">
+                                {selectedFiles.length > 0 && (
+                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     <div className="button-group">
                         <Button
                             onClick={handleDetailedSummary}
-                            disabled={!transcription || transcription.length === 0}
+                            disabled={selectedFiles.length === 0}
                         >
                             生成详总结
                         </Button>
@@ -946,14 +1041,15 @@ function App() {
                             导出总结
                         </Button>
                     </div>
-                    {(!transcription || transcription.length === 0) && (
+                    {selectedFiles.length === 0 ? (
                         <div className="empty-state">
-                            <p>需待视频/音频完成转录</p>
+                            <p>请在左侧选择需要生成详细总结的文件</p>
+                        </div>
+                    ) : (
+                        <div className="markdown-content detailed-summary-content">
+                            <ReactMarkdown>{detailedSummary}</ReactMarkdown>
                         </div>
                     )}
-                    <div className="markdown-content detailed-summary-content">
-                        <ReactMarkdown>{detailedSummary}</ReactMarkdown>
-                    </div>
                 </div>
             ),
         },
@@ -962,26 +1058,41 @@ function App() {
             label: '思维导图',
             children: (
                 <div className="tab-content">
+                    <div className="section-header">
+                        <div className="section-title">
+                            <h3>思维导图</h3>
+                            <div className="selection-tip">
+                                {selectedFiles.length > 0 && (
+                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                     <Button
                         onClick={handleMindmap}
                         loading={isMindmapLoading}
-                        disabled={isMindmapLoading || !transcription || transcription.length === 0}
+                        disabled={isMindmapLoading || selectedFiles.length === 0 || getSelectedTranscribedFilesCount() === 0}
                     >
                         {isMindmapLoading ? '生成中...' : '生成思维导图'}
                     </Button>
-                    {(!transcription || transcription.length === 0) && (
+                    {selectedFiles.length === 0 ? (
                         <div className="empty-state">
-                            <p>需等待视频/音频完成转录</p>
+                            <p>请在左侧选择需要生成思维导图的文件</p>
+                        </div>
+                    ) : mindmapData ? (
+                        <div id="mindmap_container" className="mindmap-container">
+                            {isMindmapLoading && (
+                                <div className="mindmap-loading">
+                                    <div className="loading-spinner"></div>
+                                    <p>正在生成思维导图...</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="empty-state">
+                            <p>点击上方按钮生成思维导图</p>
                         </div>
                     )}
-                    <div id="mindmap_container" className="mindmap-container">
-                        {isMindmapLoading && (
-                            <div className="mindmap-loading">
-                                <div className="loading-spinner"></div>
-                                <p>正在生成思维导图...</p>
-                            </div>
-                        )}
-                    </div>
                 </div>
             ),
         },
@@ -990,9 +1101,9 @@ function App() {
             label: '对话交互',
             children: (
                 <div className="tab-content chat-tab">
-                    {(!transcription || transcription.length === 0) ? (
+                    {selectedFiles.length === 0 ? (
                         <div className="empty-state">
-                            <p>需等待视频/音频完成转录</p>
+                            <p>请在左侧选择需要生成对话交互的文件</p>
                         </div>
                     ) : (
                         <>
@@ -1128,16 +1239,19 @@ function App() {
                                     type="primary"
                                     danger
                                     onClick={handleDeleteAll}
-                                    disabled={selectedFiles.length === 0}
+                                    disabled={selectedFiles.length === 0 || selectedFiles.some(id =>
+                                        uploadedFiles.find(f => f.id === id)?.status === 'transcribing'
+                                    )}
                                 >
                                     删除选中
                                 </Button>
                                 <Button
                                     type="primary"
                                     onClick={handleBatchTranscribe}
-                                    disabled={selectedFiles.length === 0 || isTranscribing}
+                                    disabled={selectedFiles.length === 0}
+                                    danger={isTranscribing}
                                 >
-                                    {isTranscribing ? '转录中...' : '开始转录'}
+                                    {isTranscribing ? '停止转录' : '开始转录'}
                                 </Button>
                             </div>
                         </div>

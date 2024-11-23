@@ -7,9 +7,10 @@ from typing import List
 import os
 import tempfile
 from datetime import datetime
-from backend.services.stt_service import transcribe_audio
+from backend.services.stt_service import transcribe_audio, stop_transcription
 from backend.services.ai_service import generate_summary, generate_mindmap, chat_with_model, generate_detailed_summary
 from backend.models import ChatMessage, ChatRequest
+import asyncio
 
 app = FastAPI()
 
@@ -25,11 +26,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 添加一个变量来跟踪转录任务
+transcription_task = None
+
 class TextRequest(BaseModel):
     text: str
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
+    global transcription_task
     try:
         # 保存上传的文件
         file_path = f"uploads/{file.filename}"
@@ -39,9 +44,14 @@ async def upload_file(file: UploadFile = File(...)):
             content = await file.read()
             buffer.write(content)
         
-        # 转录音频
-        transcription = await transcribe_audio(file_path)
+        # 创建转录任务
+        transcription_task = asyncio.create_task(transcribe_audio(file_path))
+        transcription = await transcription_task
+        transcription_task = None
+        
         return {"transcription": transcription}
+    except asyncio.CancelledError:
+        raise HTTPException(status_code=499, detail="Transcription cancelled")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -162,5 +172,22 @@ async def export_transcription(format: str, transcription: List[dict]):
                 media_type=mime_type,
                 background=None  # 立即发送文件
             )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/stop-transcribe")
+async def stop_transcribe():
+    global transcription_task
+    try:
+        # 先设置停止标志
+        stop_transcription()
+        
+        if transcription_task:
+            # 取消正在进行的转录任务
+            transcription_task.cancel()
+            await asyncio.sleep(0.1)  # 给一点时间让任务取消
+            transcription_task = None
+            
+        return {"message": "Transcription stopped"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) 
