@@ -913,16 +913,16 @@ jmnode.important {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 16px;
   flex-wrap: nowrap;
-  /* 防止换行 */
 }
 
 .section-title {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .section-title h3 {
@@ -930,6 +930,7 @@ jmnode.important {
   color: #333;
   font-size: 16px;
   font-weight: 500;
+  margin-right: 12px;
 }
 
 .export-buttons {
@@ -1438,10 +1439,10 @@ jmnodes.theme-primary jmnode.selected {
 .selection-tip {
   font-size: 14px;
   color: #666;
-  margin-left: 12px;
   background: #f5f5f5;
   padding: 4px 8px;
   border-radius: 4px;
+  margin-right: 12px;
 }
 
 .section-title {

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
@@ -46,13 +46,31 @@ async def upload_file(file: UploadFile = File(...)):
         
         # 创建转录任务
         transcription_task = asyncio.create_task(transcribe_audio(file_path))
-        transcription = await transcription_task
-        transcription_task = None
-        
-        return {"transcription": transcription}
+        try:
+            transcription = await transcription_task
+            transcription_task = None
+            return {"transcription": transcription}
+        except asyncio.CancelledError:
+            # 确保任务被正确取消
+            if not transcription_task.cancelled():
+                transcription_task.cancel()
+            transcription_task = None
+            # 返回特定的状态码和消息
+            return JSONResponse(
+                status_code=499,  # 使用499表示客户端主动取消请求
+                content={"status": "interrupted", "detail": "Transcription interrupted"}
+            )
+            
     except asyncio.CancelledError:
-        raise HTTPException(status_code=499, detail="Transcription cancelled")
+        # 返回特定的状态码和消息
+        return JSONResponse(
+            status_code=499,
+            content={"status": "interrupted", "detail": "Transcription interrupted"}
+        )
     except Exception as e:
+        if transcription_task and not transcription_task.cancelled():
+            transcription_task.cancel()
+        transcription_task = None
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/summary")
@@ -182,10 +200,13 @@ async def stop_transcribe():
         # 先设置停止标志
         stop_transcription()
         
-        if transcription_task:
+        if transcription_task and not transcription_task.cancelled():
             # 取消正在进行的转录任务
             transcription_task.cancel()
-            await asyncio.sleep(0.1)  # 给一点时间让任务取消
+            try:
+                await asyncio.wait_for(transcription_task, timeout=0.5)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
             transcription_task = None
             
         return {"message": "Transcription stopped"}

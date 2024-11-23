@@ -12,23 +12,25 @@ async def transcribe_audio(file_path: str) -> list:
     should_stop = False
     
     try:
-        # 在这里添加检查点
-        if should_stop:
-            raise asyncio.CancelledError("Transcription cancelled")
-            
-        segments, info = model.transcribe(file_path)
+        # 使用 segments_chunk 来获取分段的转录结果
+        segments_generator = model.transcribe(file_path, beam_size=1)
         
         transcription = []
+        segments, info = segments_generator
+        
+        # 将 segments 转换为列表，这样我们可以在迭代过程中检查停止标志
         for segment in segments:
+            if should_stop:
+                raise asyncio.CancelledError("Transcription cancelled")
+                
             transcription.append({
                 "start": segment.start,
                 "end": segment.end,
                 "text": segment.text
             })
-        
-        # 在耗时操作的关键位置添加检查
-        if should_stop:
-            raise asyncio.CancelledError("Transcription cancelled")
+            
+            # 每处理一个片段后让出控制权
+            await asyncio.sleep(0)
             
         return transcription
         
@@ -38,7 +40,6 @@ async def transcribe_audio(file_path: str) -> list:
     finally:
         should_stop = False
 
-# 添加一个新函数来停止转录
 def stop_transcription():
     global should_stop
     should_stop = True 

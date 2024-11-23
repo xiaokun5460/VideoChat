@@ -255,7 +255,7 @@ function App() {
         }
 
         if (selectedFiles.length === 0) {
-            message.warning('请选择需要转录的文件');
+            message.warning('请选��需要转录的文件');
             return;
         }
 
@@ -298,11 +298,20 @@ function App() {
                         body: formData,
                     });
 
+                    const data = await response.json();
+
+                    if (response.status === 499) {
+                        // 处理转录中断的情况
+                        setUploadedFiles(prev => prev.map(f =>
+                            f.id === fileId ? { ...f, status: 'interrupted' } : f
+                        ));
+                        // 不显示错误消息，因为这是用户主动中断
+                        continue;
+                    }
+
                     if (!response.ok) {
                         throw new Error(`转录失败: ${file.name}`);
                     }
-
-                    const data = await response.json();
 
                     if (!abortTranscribing) {  // 添加检查，确保没有中断请求
                         setUploadedFiles(prev => prev.map(f =>
@@ -552,7 +561,7 @@ function App() {
         if (isGenerating) {
             abortController.current?.abort();
             setIsGenerating(false);
-            // 更新最后一条��息为"已停止生成"
+            // 更新最后一条息为"已停止生成"
             setMessages(prevMessages => {
                 const newMessages = [...prevMessages];
                 if (newMessages.length > 0) {
@@ -898,7 +907,7 @@ function App() {
         ).length;
     };
 
-    // 修改标签页内容
+    // 修标签页内容
     const tabItems = [
         {
             key: '1',
@@ -913,12 +922,6 @@ function App() {
                                     <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
                                 )}
                             </div>
-                            {isTranscribing && !abortTranscribing && (
-                                <div className="transcription-progress">
-                                    <SyncOutlined spin />
-                                    <span>正在转录中...</span>
-                                </div>
-                            )}
                         </div>
                         <div className="export-buttons">
                             <Button.Group size="small">
