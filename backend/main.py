@@ -8,7 +8,7 @@ import os
 import tempfile
 from datetime import datetime
 from backend.services.stt_service import transcribe_audio
-from backend.services.ai_service import generate_summary, generate_mindmap, chat_with_model
+from backend.services.ai_service import generate_summary, generate_mindmap, chat_with_model, generate_detailed_summary
 from backend.models import ChatMessage, ChatRequest
 
 app = FastAPI()
@@ -62,6 +62,14 @@ async def get_mindmap(request: TextRequest):
 async def chat(request: ChatRequest):
     async def generate():
         async for chunk in chat_with_model(request.messages, request.context):
+            yield chunk
+
+    return StreamingResponse(generate(), media_type="text/plain")
+
+@app.post("/api/detailed-summary")
+async def get_detailed_summary(request: TextRequest):
+    async def generate():
+        async for chunk in generate_detailed_summary(request.text):
             yield chunk
 
     return StreamingResponse(generate(), media_type="text/plain")

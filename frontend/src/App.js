@@ -18,6 +18,7 @@ function App() {
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [isMindmapLoading, setIsMindmapLoading] = useState(false);
     const mediaRef = useRef(null);
+    const [detailedSummary, setDetailedSummary] = useState('');
 
     // 初始化 Mermaid
     React.useEffect(() => {
@@ -379,6 +380,47 @@ function App() {
         }
     };
 
+    // 添加详细总结函数
+    const handleDetailedSummary = async () => {
+        if (!checkTranscription()) return;
+
+        const text = transcription.map(item => item.text).join('\n');
+        try {
+            setDetailedSummary(''); // 清空现有总结
+            const response = await fetch('http://localhost:8000/api/detailed-summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text }),
+            });
+
+            if (!response.ok) {
+                throw new Error('生成详细总结失败');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let summaryText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const chunk = decoder.decode(value, { stream: true });
+                summaryText += chunk;
+                setDetailedSummary(summaryText);
+            }
+
+            // 滚动到底部
+            const summaryContent = document.querySelector('.detailed-summary-content');
+            if (summaryContent) {
+                summaryContent.scrollTop = summaryContent.scrollHeight;
+            }
+        } catch (error) {
+            console.error('Detailed summary generation failed:', error);
+            message.error('生成详细总结失败：' + error.message);
+        }
+    };
+
     // 修改标签页内容
     const tabItems = [
         {
@@ -405,6 +447,28 @@ function App() {
         },
         {
             key: '2',
+            label: '详细总结',
+            children: (
+                <div className="tab-content">
+                    <Button
+                        onClick={handleDetailedSummary}
+                        disabled={!transcription || transcription.length === 0}
+                    >
+                        生成详细总结
+                    </Button>
+                    {(!transcription || transcription.length === 0) && (
+                        <div className="empty-state">
+                            <p>请先上传视频/音频并完成转录</p>
+                        </div>
+                    )}
+                    <div className="markdown-content detailed-summary-content">
+                        <ReactMarkdown>{detailedSummary}</ReactMarkdown>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: '3',
             label: '思维导图',
             children: (
                 <div className="tab-content">
@@ -438,7 +502,7 @@ function App() {
             ),
         },
         {
-            key: '3',
+            key: '4',
             label: '对话交互',
             children: (
                 <div className="tab-content">

@@ -853,3 +853,64 @@
 .export-buttons .anticon {
   font-size: 12px;
 }
+
+.markdown-content,
+.detailed-summary-content {
+  flex: 1;
+  padding: 20px;
+  background: #fafafa;
+  border-radius: 8px;
+  overflow-y: auto;
+  line-height: 1.8;
+  font-size: 15px;
+}
+
+/* Markdown 样式优化 */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.detailed-summary-content h1,
+.detailed-summary-content h2,
+.detailed-summary-content h3 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-content p,
+.detailed-summary-content p {
+  margin-bottom: 16px;
+}
+
+.markdown-content ul,
+.markdown-content ol,
+.detailed-summary-content ul,
+.detailed-summary-content ol {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.markdown-content blockquote,
+.detailed-summary-content blockquote {
+  padding: 0 16px;
+  color: #666;
+  border-left: 4px solid #ddd;
+  margin: 16px 0;
+}
+
+.markdown-content code,
+.detailed-summary-content code {
+  background-color: #f0f0f0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.markdown-content hr,
+.detailed-summary-content hr {
+  height: 1px;
+  background-color: #ddd;
+  border: none;
+  margin: 24px 0;
+}

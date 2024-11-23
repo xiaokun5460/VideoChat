@@ -90,4 +90,24 @@ async def chat_with_model(messages: List[ChatMessage], context: str):
     
     async for chunk in response:
         if chunk.choices[0].delta.content is not None:
+            yield chunk.choices[0].delta.content
+
+async def generate_detailed_summary(text: str):
+    response = await client.chat.completions.create(
+        model=AI_CONFIG["model"],
+        messages=[
+            {"role": "system", "content": """请对以下内容进行详细的总结分析，要求：
+            1. 使用 Markdown 格式输出
+            2. 包含主要内容、关键点、背景信息等
+            3. 分点列出重要观点
+            4. 添加适当的标题和分隔符
+            5. 如有必要，可以添加引用和列表
+            """},
+            {"role": "user", "content": text}
+        ],
+        stream=True
+    )
+    
+    async for chunk in response:
+        if chunk.choices[0].delta.content is not None:
             yield chunk.choices[0].delta.content 
