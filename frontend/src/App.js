@@ -32,6 +32,11 @@ function App() {
     const [selectedFiles, setSelectedFiles] = useState([]);  // 存储选中的文件
     const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
 
+    // 打印 uploadedFiles 的变化
+    useEffect(() => {
+        console.log('Uploaded Files:', uploadedFiles);
+    }, [uploadedFiles]);
+
     // 初始化 Mermaid
     React.useEffect(() => {
         Mermaid.initialize({
@@ -79,7 +84,7 @@ function App() {
         // 创建文件的URL
         const url = URL.createObjectURL(file);
         const newFile = {
-            id: Date.now(),  // 使用时间戳作为唯一ID
+            id: `${file.name}-${Date.now()}`,  // 使用文件名和时间戳组合作为唯一ID
             name: file.name,
             type: isVideo ? 'video' : 'audio',
             url: url,
@@ -104,12 +109,19 @@ function App() {
         setSelectedFiles(fileIds);
     };
 
+    // 添加分页配置
+    const paginationConfig = {
+        pageSize: 7, // 确保每页显示7个文件
+        showSizeChanger: false, // 不允许用户改变每页显示数量
+    };
+
     // 文件列表列定义
     const fileColumns = [
         {
             title: '文件名',
             dataIndex: 'name',
             key: 'name',
+            width: '70%',
         },
         {
             title: '类型',
@@ -152,18 +164,15 @@ function App() {
 
     // 处理文件删除
     const handleFileDelete = (fileId) => {
-        // 阻止事件冒泡，避免触发行点击事件
         setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
         setSelectedFiles(prev => prev.filter(id => id !== fileId));
 
-        // 如果删除的是当前预览的文件，切换到第一个可用文件
         if (currentFile?.id === fileId) {
             const remainingFiles = uploadedFiles.filter(file => file.id !== fileId);
             const nextFile = remainingFiles[0];
             if (nextFile) {
                 setCurrentFile(nextFile);
                 setMediaUrl({ url: nextFile.url, type: nextFile.type });
-                // 如果下一个文件有转录结果，显示它的转录结果
                 if (nextFile.transcription) {
                     setTranscription(nextFile.transcription);
                 } else {
@@ -196,7 +205,13 @@ function App() {
         try {
             for (const fileId of selectedFiles) {
                 const file = uploadedFiles.find(f => f.id === fileId);
-                if (!file || file.status === 'transcribing') continue;
+                if (!file) continue;
+
+                // 如果文件已经转录完成，跳过并提示
+                if (file.status === 'done') {
+                    message.info(`文件 "${file.name}" 已经转录完成，跳过此文件。`);
+                    continue;
+                }
 
                 // 更新文件状态
                 setUploadedFiles(prev => prev.map(f =>
@@ -415,7 +430,7 @@ function App() {
             jsMind.util.register_theme('primary', customTheme);
         }
 
-        // 注册节点样式
+        // 注册节点��式
         const nodeStyles = {
             important: {
                 'background-color': '#e6f7ff',
@@ -731,6 +746,60 @@ function App() {
     const tabItems = [
         {
             key: '1',
+            label: '转录结果',
+            children: (
+                <div className="tab-content">
+                    <div className="section-header">
+                        <div className="section-title">
+                            <h3>转录结果</h3>
+                            {isTranscribing && (
+                                <div className="transcription-progress">
+                                    <SyncOutlined spin />
+                                    <span>正在转录中...</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="export-buttons">
+                            <Button.Group size="small">
+                                <Button
+                                    onClick={() => handleExport('vtt')}
+                                    icon={<DownloadOutlined />}
+                                    disabled={!transcription.length}
+                                >
+                                    VTT
+                                </Button>
+                                <Button
+                                    onClick={() => handleExport('srt')}
+                                    icon={<DownloadOutlined />}
+                                    disabled={!transcription.length}
+                                >
+                                    SRT
+                                </Button>
+                                <Button
+                                    onClick={() => handleExport('txt')}
+                                    icon={<DownloadOutlined />}
+                                    disabled={!transcription.length}
+                                >
+                                    TXT
+                                </Button>
+                            </Button.Group>
+                        </div>
+                    </div>
+                    <Table
+                        dataSource={transcription.map((item, index) => ({
+                            ...item,
+                            key: index,
+                        }))}
+                        columns={transcriptionColumns}
+                        pagination={false}
+                        size="small"
+                        className="transcription-table full-height"
+                    />
+                </div>
+            ),
+        },
+        {
+            key: '2',
             label: '简单总结',
             children: (
                 <div className="tab-content">
@@ -761,7 +830,7 @@ function App() {
             ),
         },
         {
-            key: '2',
+            key: '3',
             label: '详细总结',
             children: (
                 <div className="tab-content">
@@ -792,7 +861,7 @@ function App() {
             ),
         },
         {
-            key: '3',
+            key: '4',
             label: '思维导图',
             children: (
                 <div className="tab-content">
@@ -820,7 +889,7 @@ function App() {
             ),
         },
         {
-            key: '4',
+            key: '5',
             label: '对话交互',
             children: (
                 <div className="tab-content chat-tab">
@@ -873,7 +942,7 @@ function App() {
                                             }
                                         }
                                     }}
-                                    placeholder="输入消息，按Enter发送，Shift+Enter换行"
+                                    placeholder="输入消息按Enter发送，Shift+Enter换行"
                                     autoSize={{ minRows: 1, maxRows: 4 }}
                                     disabled={isGenerating}
                                 />
@@ -970,82 +1039,9 @@ function App() {
                                     background: currentFile?.id === record.id ? '#e6f7ff' : 'inherit',
                                 },
                             })}
+                            pagination={paginationConfig}
                         />
                     </div>
-
-                    {currentFile?.transcription && (
-                        <div className="transcription-section">
-                            <div className="section-header">
-                                <div className="section-title">
-                                    <h3>转录结果</h3>
-                                </div>
-                            </div>
-                            <Table
-                                dataSource={currentFile.transcription.map((item, index) => ({
-                                    ...item,
-                                    key: index,
-                                }))}
-                                columns={transcriptionColumns}
-                                pagination={false}
-                                size="small"
-                                className="transcription-table"
-                            />
-                        </div>
-                    )}
-                </div>
-            ),
-        },
-        {
-            key: '2',
-            label: '转录结果',
-            children: (
-                <div className="tab-content">
-                    <div className="section-header">
-                        <div className="section-title">
-                            <h3>转录结果</h3>
-                            {isTranscribing && (
-                                <div className="transcription-progress">
-                                    <SyncOutlined spin />
-                                    <span>正在转录中...</span>
-                                </div>
-                            )}
-                        </div>
-                        <div className="export-buttons">
-                            <Button.Group size="small">
-                                <Button
-                                    onClick={() => handleExport('vtt')}
-                                    icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
-                                >
-                                    VTT
-                                </Button>
-                                <Button
-                                    onClick={() => handleExport('srt')}
-                                    icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
-                                >
-                                    SRT
-                                </Button>
-                                <Button
-                                    onClick={() => handleExport('txt')}
-                                    icon={<DownloadOutlined />}
-                                    disabled={!transcription.length}
-                                >
-                                    TXT
-                                </Button>
-                            </Button.Group>
-                        </div>
-                    </div>
-                    <Table
-                        dataSource={transcription.map((item, index) => ({
-                            ...item,
-                            key: index,
-                        }))}
-                        columns={transcriptionColumns}
-                        pagination={false}
-                        size="small"
-                        className="transcription-table full-height"
-                    />
                 </div>
             ),
         },
