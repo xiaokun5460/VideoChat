@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Layout, Upload, Button, Input, Card, message, Table, Tabs } from 'antd';
-import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined } from '@ant-design/icons';
+import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
 import './App.css';
@@ -19,6 +19,10 @@ function App() {
     const [isMindmapLoading, setIsMindmapLoading] = useState(false);
     const mediaRef = useRef(null);
     const [detailedSummary, setDetailedSummary] = useState('');
+    const [isUserScrolling, setIsUserScrolling] = useState(false);
+    const messagesEndRef = useRef(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const abortController = useRef(null);
 
     // 初始化 Mermaid
     React.useEffect(() => {
@@ -117,7 +121,7 @@ function App() {
                 throw new Error('生成总结失败');
             }
 
-            // 使用 ReadableStream 处理流式响应
+            // 使用 ReadableStream 处理式响应
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let summaryText = '';
@@ -213,7 +217,7 @@ function App() {
             });
 
             if (!response.ok) {
-                throw new Error('���成思维导图失败');
+                throw new Error('成思维导图失败');
             }
 
             const data = await response.json();
@@ -235,20 +239,31 @@ function App() {
             return;
         }
 
+        // 如果正在生成，则停止生成
+        if (isGenerating) {
+            abortController.current?.abort();
+            setIsGenerating(false);
+            return;
+        }
+
         const newMessage = { role: 'user', content: inputMessage };
         const currentMessages = [...messages, newMessage];
         setMessages(currentMessages);
         setInputMessage('');
+        setIsGenerating(true);
 
-        const context = transcription.map(item => item.text).join('\n');
+        // 创建新的 AbortController
+        abortController.current = new AbortController();
+
         try {
             const response = await fetch('http://localhost:8000/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: currentMessages,
-                    context,
+                    context: transcription.map(item => item.text).join('\n'),
                 }),
+                signal: abortController.current.signal
             });
 
             if (!response.ok) {
@@ -256,7 +271,6 @@ function App() {
             }
 
             const reader = response.body.getReader();
-            const decoder = new TextDecoder();
             let aiResponse = '';
 
             // 创建 AI 消息占位
@@ -266,25 +280,24 @@ function App() {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                // 解码并添加新的文本块
-                const chunk = decoder.decode(value, { stream: true });
+                const chunk = new TextDecoder().decode(value);
                 aiResponse += chunk;
 
-                // 更新消息
                 setMessages([
                     ...currentMessages,
                     { role: 'assistant', content: aiResponse }
                 ]);
-
-                // 滚动到底部
-                const messageList = document.querySelector('.message-list');
-                if (messageList) {
-                    messageList.scrollTop = messageList.scrollHeight;
-                }
             }
         } catch (error) {
-            console.error('Error sending message:', error);
-            message.error('发送消息失败：' + error.message);
+            if (error.name === 'AbortError') {
+                message.info('已停止生成');
+            } else {
+                console.error('Error sending message:', error);
+                message.error('发送消息失败：' + error.message);
+            }
+        } finally {
+            setIsGenerating(false);
+            abortController.current = null;
         }
     };
 
@@ -459,6 +472,36 @@ function App() {
         }
     };
 
+    // 添加复制功能
+    const handleCopyMessage = (content) => {
+        navigator.clipboard.writeText(content)
+            .then(() => {
+                message.success('复制成功');
+            })
+            .catch(() => {
+                message.error('复制失败');
+            });
+    };
+
+    // 添加滚动处理函数
+    const handleScroll = (e) => {
+        const element = e.target;
+        const isScrolledToBottom = Math.abs(element.scrollHeight - element.scrollTop - element.clientHeight) < 10;
+        setIsUserScrolling(!isScrolledToBottom);
+    };
+
+    // 添加滚动到底部的函数
+    const scrollToBottom = useCallback(() => {
+        if (messagesEndRef.current && !isUserScrolling) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [isUserScrolling]);
+
+    // 监听消息变化，自动滚动
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages, scrollToBottom]);
+
     // 修改标签页内容
     const tabItems = [
         {
@@ -568,20 +611,34 @@ function App() {
                         </div>
                     ) : (
                         <>
-                            <div className="chat-messages">
+                            <div
+                                className="chat-messages"
+                                onScroll={handleScroll}
+                            >
                                 {messages.map((msg, index) => (
                                     <div
                                         key={index}
                                         className={`message-wrapper ${msg.role === 'user' ? 'user' : 'assistant'}`}
                                     >
                                         <div className="message-bubble">
-                                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                            <div className="message-content">
+                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                            </div>
+                                            <Button
+                                                type="text"
+                                                className="copy-button"
+                                                icon={<CopyOutlined />}
+                                                onClick={() => handleCopyMessage(msg.content)}
+                                            >
+                                                复制
+                                            </Button>
                                         </div>
                                         <div className="message-time">
                                             {new Date().toLocaleTimeString()}
                                         </div>
                                     </div>
                                 ))}
+                                <div ref={messagesEndRef} /> {/* 添加一个用于滚动的参考元素 */}
                             </div>
                             <div className="chat-input-area">
                                 <TextArea
@@ -595,13 +652,16 @@ function App() {
                                     }}
                                     placeholder="输入消息，按Enter发送，Shift+Enter换行"
                                     autoSize={{ minRows: 1, maxRows: 4 }}
+                                    disabled={isGenerating}
                                 />
                                 <Button
                                     type="primary"
-                                    icon={<SendOutlined />}
+                                    icon={isGenerating ? <StopOutlined /> : <SendOutlined />}
                                     onClick={handleSendMessage}
-                                    disabled={!inputMessage.trim()}
-                                />
+                                    danger={isGenerating}
+                                >
+                                    {isGenerating ? '停止' : '发送'}
+                                </Button>
                             </div>
                         </>
                     )}

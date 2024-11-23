@@ -942,7 +942,7 @@
   display: flex;
   flex-direction: column;
   margin-bottom: 16px;
-  max-width: 80%;
+  max-width: 85%;
 }
 
 .message-wrapper.user {
@@ -955,10 +955,12 @@
 }
 
 .message-bubble {
+  position: relative;
   padding: 12px 16px;
   border-radius: 12px;
-  background: white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .message-wrapper.user .message-bubble {
@@ -992,19 +994,41 @@
 }
 
 .chat-input-area .ant-btn {
-  border-radius: 50%;
-  width: 40px;
+  min-width: 80px;
+  /* 确保按钮有足够宽度显示文字 */
   height: 40px;
-  padding: 0;
+  padding: 0 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  border-radius: 20px;
+}
+
+/* 停止按钮样式 */
+.chat-input-area .ant-btn-dangerous {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+.chat-input-area .ant-btn-dangerous:hover {
+  background-color: #ff7875;
+  border-color: #ff7875;
+}
+
+/* 输入框样式 */
+.chat-input-area .ant-input[disabled] {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
 }
 
 /* Markdown 样式优化 */
-.message-bubble .markdown-content {
+.message-bubble .message-content .markdown-content {
   margin: 0;
   padding: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .message-bubble p {
@@ -1013,10 +1037,11 @@
 
 .message-bubble pre {
   background: #f8f9fa;
-  padding: 8px;
-  border-radius: 4px;
+  padding: 12px;
+  border-radius: 6px;
   margin: 8px 0;
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .message-bubble code {
@@ -1024,4 +1049,206 @@
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 0.9em;
+  font-family: monospace;
+}
+
+.message-bubble table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.message-bubble th,
+.message-bubble td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.message-bubble th {
+  background-color: #f5f5f5;
+}
+
+.message-bubble img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.message-bubble ul,
+.message-bubble ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.message-bubble blockquote {
+  border-left: 4px solid #ddd;
+  margin: 8px 0;
+  padding-left: 16px;
+  color: #666;
+}
+
+.message-bubble h1,
+.message-bubble h2,
+.message-bubble h3,
+.message-bubble h4,
+.message-bubble h5,
+.message-bubble h6 {
+  margin: 16px 0 8px 0;
+  line-height: 1.4;
+}
+
+.message-bubble p {
+  margin: 8px 0;
+}
+
+.message-bubble a {
+  color: #1890ff;
+  text-decoration: none;
+}
+
+.message-bubble a:hover {
+  text-decoration: underline;
+}
+
+.message-bubble hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 16px 0;
+}
+
+/* 确保长文本正确换行 */
+.message-wrapper .message-bubble {
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* 复制按钮样式 */
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* 鼠标悬停时显示复制按钮 */
+.message-bubble:hover .copy-button {
+  opacity: 1;
+}
+
+/* 复制按钮图标样式 */
+.copy-button .anticon {
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+/* 调整消息内容的内边距，为复制按钮留出空间 */
+.message-bubble .message-content {
+  padding-right: 24px;
+}
+
+/* 确保复制按钮在消息气泡内部 */
+.message-bubble {
+  overflow: visible;
+}
+
+/* 优化复制按钮的悬停效果 */
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* 用户消息的复制按钮位置调整 */
+.message-wrapper.user .copy-button {
+  right: 8px;
+}
+
+/* 助手消息的复制按钮位置调整 */
+.message-wrapper.assistant .copy-button {
+  right: 8px;
+}
+
+/* 消息气泡样式 */
+.message-bubble {
+  position: relative;
+  padding: 12px 16px;
+  border-radius: 12px;
+  width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* 用户消息样式 */
+.message-wrapper.user .message-bubble {
+  background: #e6f7ff;
+  border-top-right-radius: 4px;
+}
+
+/* AI消息样式 */
+.message-wrapper.assistant .message-bubble {
+  background: #f6ffed;
+  border-top-left-radius: 4px;
+}
+
+/* 消息内容样式 */
+.message-bubble .message-content {
+  padding-right: 24px;
+  background: transparent !important;
+  /* 确保内容区域背景透明 */
+}
+
+/* 确保 Markdown 内容继承消息气泡的背景色 */
+.message-bubble .message-content>* {
+  background: transparent !important;
+  /* 强制所有子元素背景透明 */
+}
+
+/* 复制按钮样式 */
+.copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: transparent !important;
+  /* 确保按钮背景透明 */
+}
+
+/* 鼠标悬停时显示复制按钮 */
+.message-bubble:hover .copy-button {
+  opacity: 1;
+}
+
+/* 复制按钮悬停效果 */
+.copy-button:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Markdown 内容样式 */
+.message-bubble .message-content .markdown-content {
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+}
+
+/* 确保所有 Markdown 元素背景透明 */
+.message-bubble .message-content p,
+.message-bubble .message-content ul,
+.message-bubble .message-content ol,
+.message-bubble .message-content blockquote,
+.message-bubble .message-content pre,
+.message-bubble .message-content code,
+.message-bubble .message-content h1,
+.message-bubble .message-content h2,
+.message-bubble .message-content h3,
+.message-bubble .message-content h4,
+.message-bubble .message-content h5,
+.message-bubble .message-content h6 {
+  background: transparent !important;
 }
