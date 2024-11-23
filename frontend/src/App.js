@@ -621,7 +621,7 @@ function App() {
             const reader = response.body.getReader();
             let aiResponse = '';
 
-            // 创建 AI ��息占位
+            // 创建 AI 息占位
             setMessages([...currentMessages, { role: 'assistant', content: '' }]);
 
             while (true) {
@@ -842,7 +842,7 @@ function App() {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            message.success('导出成功');
+            message.success('导出��功');
         } catch (error) {
             console.error('Export failed:', error);
             message.error('导出失败：' + error.message);
@@ -1127,12 +1127,19 @@ function App() {
             label: '对话交互',
             children: (
                 <div className="tab-content chat-tab">
-                    {selectedFiles.length === 0 ? (
+                    {!currentFile ? (
                         <div className="empty-state">
-                            <p>请在左侧选择需要生成对话交互的文件</p>
+                            <p>请在左侧选择要查看对话交互的文件</p>
+                        </div>
+                    ) : !currentFile.transcription ? (
+                        <div className="empty-state">
+                            <p>当前文件尚未完成转录</p>
                         </div>
                     ) : (
                         <>
+                            <div className="current-file-tip">
+                                <span>当前文件：{currentFile.name}</span>
+                            </div>
                             <div
                                 className="chat-messages"
                                 onScroll={handleScroll}
@@ -1160,7 +1167,7 @@ function App() {
                                         </div>
                                     </div>
                                 ))}
-                                <div ref={messagesEndRef} /> {/* 添加一个用于滚动的参考元素 */}
+                                <div ref={messagesEndRef} />
                             </div>
                             <div className="chat-input-area">
                                 <TextArea
