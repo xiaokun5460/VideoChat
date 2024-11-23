@@ -1207,7 +1207,7 @@ function App() {
     const leftTabItems = [
         {
             key: '1',
-            label: '视频预览',
+            label: '音视频预览',
             children: (
                 <div className="tab-content">
                     <div className="preview-section">
