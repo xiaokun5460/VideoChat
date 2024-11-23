@@ -23,6 +23,7 @@ function App() {
     const messagesEndRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const abortController = useRef(null);
+    const [isComposing, setIsComposing] = useState(false);
 
     // 初始化 Mermaid
     React.useEffect(() => {
@@ -104,7 +105,7 @@ function App() {
         return true;
     };
 
-    // 修改内容总结函数
+    // 修改简单总结函数
     const handleSummary = async () => {
         if (!checkTranscription()) return;
 
@@ -233,16 +234,28 @@ function App() {
 
     // 修改发送消息函数
     const handleSendMessage = async () => {
-        if (!checkTranscription()) return;
-        if (!inputMessage.trim()) {
-            message.warning('请输入消息内容');
-            return;
-        }
-
         // 如果正在生成，则停止生成
         if (isGenerating) {
             abortController.current?.abort();
             setIsGenerating(false);
+            // 更新最后一条消息为"已停止生成"
+            setMessages(prevMessages => {
+                const newMessages = [...prevMessages];
+                if (newMessages.length > 0) {
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage.role === 'assistant') {
+                        lastMessage.content += '\n\n*[已停止生成]*';
+                    }
+                }
+                return newMessages;
+            });
+            return;
+        }
+
+        // 检查转录和输入
+        if (!checkTranscription()) return;
+        if (!inputMessage.trim()) {
+            message.warning('请输入消息内容');
             return;
         }
 
@@ -277,16 +290,24 @@ function App() {
             setMessages([...currentMessages, { role: 'assistant', content: '' }]);
 
             while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+                try {
+                    const { done, value } = await reader.read();
+                    if (done) break;
 
-                const chunk = new TextDecoder().decode(value);
-                aiResponse += chunk;
+                    const chunk = new TextDecoder().decode(value);
+                    aiResponse += chunk;
 
-                setMessages([
-                    ...currentMessages,
-                    { role: 'assistant', content: aiResponse }
-                ]);
+                    setMessages([
+                        ...currentMessages,
+                        { role: 'assistant', content: aiResponse }
+                    ]);
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        // 在被中断时立即退出循环
+                        break;
+                    }
+                    throw error;
+                }
             }
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -506,7 +527,7 @@ function App() {
     const tabItems = [
         {
             key: '1',
-            label: '内容总结',
+            label: '简单总结',
             children: (
                 <div className="tab-content">
                     <div className="button-group">
@@ -644,10 +665,14 @@ function App() {
                                 <TextArea
                                     value={inputMessage}
                                     onChange={e => setInputMessage(e.target.value)}
-                                    onPressEnter={e => {
-                                        if (!e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage();
+                                    onCompositionStart={() => setIsComposing(true)}
+                                    onCompositionEnd={() => setIsComposing(false)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            if (!isComposing) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
                                         }
                                     }}
                                     placeholder="输入消息，按Enter发送，Shift+Enter换行"
