@@ -3,6 +3,7 @@ import os
 from typing import List
 from backend.models import ChatMessage
 from backend.config import AI_CONFIG
+import json
 
 # 配置OpenAI
 client = AsyncOpenAI(
@@ -25,50 +26,154 @@ async def generate_summary(text: str):
             yield chunk.choices[0].delta.content
 
 async def generate_mindmap(text: str) -> str:
-    response = await client.chat.completions.create(
-        model=AI_CONFIG["model"],
-        messages=[
-            {"role": "system", "content": """请生成以下内容的思维导图，使用Mermaid mindmap格式。
-            注意：
-            1. 不要包含 ```mermaid 和 ``` 标记
-            2. 使用简洁的层级结构，最多3-4层
-            3. 每个节点的文本保持简短，通常不超过10个字
-            4. 使用圆括号(())标记重要节点
-            5. 示例格式：
-            mindmap
-              root((核心主题))
-                概念A
-                  要点1
-                  要点2
-                概念B((重要))
-                  细节1
-                  细节2
-            """},
-            {"role": "user", "content": text}
-        ],
-        stream=True
-    )
-    
-    full_response = ""
-    async for chunk in response:
-        if chunk.choices[0].delta.content is not None:
-            full_response += chunk.choices[0].delta.content
-    
-    # 清理响应文本
-    cleaned_response = full_response.strip()
-    
-    # 移除可能存在的 Markdown 代码块标记
-    if cleaned_response.startswith("```mermaid"):
-        cleaned_response = cleaned_response[10:]
-    if cleaned_response.endswith("```"):
-        cleaned_response = cleaned_response[:-3]
-    
-    # 确保返回的是完整的 Mermaid mindmap 格式
-    cleaned_response = cleaned_response.strip()
-    if not cleaned_response.startswith("mindmap"):
-        cleaned_response = "mindmap\n" + cleaned_response
-    
-    return cleaned_response
+    try:
+        # 创建一个示例结构
+        example = {
+            "meta": {
+                "name": "思维导图",
+                "author": "AI",
+                "version": "1.0"
+            },
+            "format": "node_tree",
+            "data": {
+                "id": "root",
+                "topic": "主题",
+                "children": [
+                    {
+                        "id": "sub1",
+                        "topic": "子主题1",
+                        "direction": "left",
+                        "children": [
+                            {
+                                "id": "sub1_1",
+                                "topic": "细节1",
+                                "direction": "left"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "sub2",
+                        "topic": "子主题2",
+                        "direction": "right",
+                        "children": [
+                            {
+                                "id": "sub2_1",
+                                "topic": "细节2",
+                                "direction": "right"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+        print("\n=== 开始生成思维导图 ===")
+        print(f"输入文本: {text[:200]}...")  # 打印前200个字符
+
+        response = await client.chat.completions.create(
+            model=AI_CONFIG["model"],
+            messages=[
+                {"role": "system", "content": f"""你是一个思维导图生成专家。请将内容转换为思维导图的 JSON 结构。
+                
+要求：
+1. 必须严格按照示例格式生成 JSON
+2. JSON 必须包含 meta、format、data 三个顶级字段
+3. data 必须包含 id、topic、children 字段
+4. 第一层子节点必须指定 direction，左右交替分布
+5. 所有节点的 id 必须唯一
+6. 不要生成任何额外的说明文字，直接返回 JSON
+7. 确保生成的是有效的 JSON 格式
+
+示例结构：
+{json.dumps(example, ensure_ascii=False, indent=2)}
+
+请严格按照上述格式生成，不要添加任何其他内容。"""},
+                {"role": "user", "content": text}
+            ],
+            stream=False,
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        full_response = response.choices[0].message.content.strip()
+        print("\n=== AI 返回的原始内容 ===")
+        print(full_response)
+        
+        # 清理 AI 返回的内容
+        def clean_response(response_text: str) -> str:
+            # 移除 markdown 代码块标记
+            if response_text.startswith('```json'):
+                response_text = response_text[7:]
+            elif response_text.startswith('```'):
+                response_text = response_text[3:]
+            
+            if response_text.endswith('```'):
+                response_text = response_text[:-3]
+            
+            # 确保返回的是去除首尾空白的字符串
+            return response_text.strip()
+        
+        # 清理响应内容
+        cleaned_response = clean_response(full_response)
+        print("\n=== 清理后的内容 ===")
+        print(cleaned_response)
+        
+        # 尝试解析 JSON
+        try:
+            print("\n=== 开始解析 JSON ===")
+            mindmap_data = json.loads(cleaned_response)
+            print("JSON 解析成功")
+            
+            # 验证数据结构
+            print("\n=== 验证数据结构 ===")
+            if not all(key in mindmap_data for key in ['meta', 'format', 'data']):
+                print("错误：缺少必要的顶级字段")
+                raise ValueError("Missing required fields in mindmap data")
+            
+            if not all(key in mindmap_data['data'] for key in ['id', 'topic']):
+                print("错误：data 对象缺少必要字段")
+                raise ValueError("Missing required fields in mindmap data.data")
+            
+            print("数据结构验证通过")
+            
+            # 打印最终的数据结构
+            print("\n=== 最终的思维导图数据 ===")
+            print(json.dumps(mindmap_data, ensure_ascii=False, indent=2))
+            
+            return json.dumps(mindmap_data, ensure_ascii=False)
+            
+        except json.JSONDecodeError as e:
+            print(f"\n=== JSON 解析错误 ===")
+            print(f"错误信息: {str(e)}")
+            print(f"问题内容: {cleaned_response}")
+            # 返回错误提示结构
+            error_mindmap = {
+                "meta": {
+                    "name": "解析错误",
+                    "author": "System",
+                    "version": "1.0"
+                },
+                "format": "node_tree",
+                "data": {
+                    "id": "root",
+                    "topic": "无法生成思维导图",
+                    "children": [
+                        {
+                            "id": "error",
+                            "topic": "生成失败，请重试",
+                            "direction": "right"
+                        }
+                    ]
+                }
+            }
+            return json.dumps(error_mindmap, ensure_ascii=False)
+        
+    except Exception as e:
+        print(f"\n=== 发生异常 ===")
+        print(f"错误类型: {type(e).__name__}")
+        print(f"错误信息: {str(e)}")
+        print(f"完整响应: {full_response if 'full_response' in locals() else 'No response'}")
+        raise
 
 async def chat_with_model(messages: List[ChatMessage], context: str):
     # 将上下文添加到消息列表中

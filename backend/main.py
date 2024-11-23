@@ -55,8 +55,11 @@ async def get_summary(request: TextRequest):
 
 @app.post("/api/mindmap")
 async def get_mindmap(request: TextRequest):
-    mindmap = await generate_mindmap(request.text)
-    return {"mindmap": mindmap}
+    try:
+        mindmap_json = await generate_mindmap(request.text)
+        return {"mindmap": mindmap_json}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):

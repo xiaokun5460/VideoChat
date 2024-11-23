@@ -4,6 +4,8 @@ import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutl
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
 import './App.css';
+import jsMind from 'jsmind';
+import 'jsmind/style/jsmind.css';
 
 const { TextArea } = Input;
 
@@ -24,6 +26,9 @@ function App() {
     const [isGenerating, setIsGenerating] = useState(false);
     const abortController = useRef(null);
     const [isComposing, setIsComposing] = useState(false);
+    const mindmapContainerRef = useRef(null);
+    const jmInstanceRef = useRef(null);
+    const [mindmapData, setMindmapData] = useState(null);
 
     // 初始化 Mermaid
     React.useEffect(() => {
@@ -84,7 +89,7 @@ function App() {
 
             const data = await response.json();
             setTranscription(data.transcription);
-            message.success('转完成！');
+            message.success('转录完成！');
         } catch (error) {
             console.error('Transcription failed:', error);
             message.error('转录失败：' + error.message);
@@ -155,61 +160,56 @@ function App() {
         }
     };
 
-    const renderMindmap = async (mindmapCode) => {
-        try {
-            const element = document.getElementById('mindmap');
-            if (!element) return;
+    // 使用 useEffect 监听 mindmapData 的变化
+    useEffect(() => {
+        if (mindmapData && !isMindmapLoading) {
+            const container = document.getElementById('mindmap_container');
+            if (!container) return;
 
-            // 创建一个新容器来渲染思维导图
-            const container = document.createElement('div');
-            container.id = 'mindmap-container';
-
-            // 使用更安全的方式清空内容
-            element.innerHTML = '';
-            element.appendChild(container);
-
-            if (mindmapCode) {
-                // 确保代码是有效的 Mermaid mindmap 格式
-                const code = mindmapCode.trim().startsWith('mindmap')
-                    ? mindmapCode
-                    : `mindmap\n${mindmapCode}`;
-
-                try {
-                    // 使用唯一的 ID 来避免冲突
-                    const uniqueId = `mindmap-svg-${Date.now()}`;
-                    const { svg } = await Mermaid.render(uniqueId, code);
-
-                    // 使用 requestAnimationFrame 来确保在下一帧渲染
-                    requestAnimationFrame(() => {
-                        if (container.parentNode === element) {
-                            container.innerHTML = svg;
-                        }
-                    });
-                } catch (renderError) {
-                    console.error('Mermaid rendering failed:', renderError);
-                    container.innerHTML = `<pre class="mindmap-fallback">${mindmapCode}</pre>`;
-                }
+            // 清空容器
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
             }
 
-            // 滚动到底部
-            element.scrollTop = element.scrollHeight;
-        } catch (error) {
-            console.error('Mindmap processing failed:', error);
-            const element = document.getElementById('mindmap');
-            if (element) {
-                element.innerHTML = `<pre class="mindmap-fallback">${mindmapCode}</pre>`;
+            try {
+                const options = {
+                    container: 'mindmap_container',
+                    theme: 'primary',
+                    editable: false,
+                    view: {
+                        hmargin: 100,
+                        vmargin: 50,
+                        line_width: 2,
+                        line_color: '#558B2F'
+                    },
+                    layout: {
+                        hspace: 30,
+                        vspace: 20,
+                        pspace: 13
+                    }
+                };
+
+                const jm = new jsMind(options);
+                const data = typeof mindmapData === 'string'
+                    ? JSON.parse(mindmapData)
+                    : mindmapData;
+
+                jm.show(data);
+            } catch (error) {
+                console.error('Failed to render mindmap:', error);
+                container.innerHTML = '<div class="mindmap-error">思维导图渲染失败</div>';
             }
         }
-    };
+    }, [mindmapData, isMindmapLoading]);
 
-    // 修改思维导图函数
+    // 修改生成思维导图的函数
     const handleMindmap = async () => {
         if (!checkTranscription()) return;
 
         const text = transcription.map(item => item.text).join('\n');
         try {
             setIsMindmapLoading(true);
-            setMindmap('');
+            setMindmapData(null);  // 清空现有数据
 
             const response = await fetch('http://localhost:8000/api/mindmap', {
                 method: 'POST',
@@ -218,12 +218,11 @@ function App() {
             });
 
             if (!response.ok) {
-                throw new Error('成思维导图失败');
+                throw new Error('生成思维导图失败');
             }
 
             const data = await response.json();
-            setMindmap(data.mindmap);
-            await renderMindmap(data.mindmap);
+            setMindmapData(data.mindmap);  // 设置新数据
         } catch (error) {
             console.error('Failed to generate mindmap:', error);
             message.error('生成思维导图失败：' + error.message);
@@ -231,6 +230,70 @@ function App() {
             setIsMindmapLoading(false);
         }
     };
+
+    // 在组件卸载时清理
+    useEffect(() => {
+        return () => {
+            if (jmInstanceRef.current) {
+                jmInstanceRef.current = null;
+            }
+        };
+    }, []);
+
+    // 修改 jsMind 的初始化和主题注册
+    useEffect(() => {
+        // 创建自定义主题
+        const customTheme = {
+            'background': '#fff',
+            'color': '#333',
+
+            'main-color': '#333',
+            'main-radius': '4px',
+            'main-background-color': '#f0f2f5',
+            'main-padding': '10px',
+            'main-margin': '0px',
+            'main-font-size': '16px',
+            'main-font-weight': 'bold',
+
+            'sub-color': '#333',
+            'sub-radius': '4px',
+            'sub-background-color': '#fff',
+            'sub-padding': '8px',
+            'sub-margin': '0px',
+            'sub-font-size': '14px',
+            'sub-font-weight': 'normal',
+
+            'line-width': '2px',
+            'line-color': '#558B2F',
+        };
+
+        // 注册主题和样式
+        if (jsMind.hasOwnProperty('register_theme')) {
+            jsMind.register_theme('primary', customTheme);
+        } else if (jsMind.hasOwnProperty('util') && jsMind.util.hasOwnProperty('register_theme')) {
+            jsMind.util.register_theme('primary', customTheme);
+        }
+
+        // 注册节点样式
+        const nodeStyles = {
+            important: {
+                'background-color': '#e6f7ff',
+                'border-radius': '4px',
+                'padding': '4px 8px',
+                'border': '1px solid #91d5ff'
+            }
+        };
+
+        if (jsMind.hasOwnProperty('register_node_style')) {
+            Object.keys(nodeStyles).forEach(style => {
+                jsMind.register_node_style(style, nodeStyles[style]);
+            });
+        } else if (jsMind.hasOwnProperty('util') && jsMind.util.hasOwnProperty('register_node_style')) {
+            Object.keys(nodeStyles).forEach(style => {
+                jsMind.util.register_node_style(style, nodeStyles[style]);
+            });
+        }
+    }, []);
 
     // 修改发送消息函数
     const handleSendMessage = async () => {
@@ -322,7 +385,7 @@ function App() {
         }
     };
 
-    // 添加时间点转函数
+    // 添加时点转函数
     const handleTimeClick = (time) => {
         if (mediaRef.current) {
             mediaRef.current.currentTime = time;
@@ -604,17 +667,11 @@ function App() {
                             <p>请先上传视频/音频并完成转录</p>
                         </div>
                     )}
-                    <div id="mindmap" className={isMindmapLoading ? 'loading' : ''}>
-                        {isMindmapLoading ? (
+                    <div id="mindmap_container" className="mindmap-container">
+                        {isMindmapLoading && (
                             <div className="mindmap-loading">
                                 <div className="loading-spinner"></div>
                                 <p>正在生成思维导图...</p>
-                            </div>
-                        ) : mindmap ? (
-                            <div id="mindmap-container"></div>
-                        ) : (
-                            <div className="mindmap-placeholder">
-                                <p>点击上方按钮生成思维导图</p>
                             </div>
                         )}
                     </div>
