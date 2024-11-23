@@ -621,7 +621,7 @@ function App() {
             const reader = response.body.getReader();
             let aiResponse = '';
 
-            // 创建 AI 消息占位
+            // 创建 AI ��息占位
             setMessages([...currentMessages, { role: 'assistant', content: '' }]);
 
             while (true) {
@@ -1110,7 +1110,7 @@ function App() {
                             <p>点击上方按钮生成思维导图</p>
                         </div>
                     ) : (
-                        <div id="mindmap_container" className="mindmap-container">
+                        <div key={currentFile.id} id="mindmap_container" className="mindmap-container">
                             {isMindmapLoading && (
                                 <div className="mindmap-loading">
                                     <div className="loading-spinner"></div>
