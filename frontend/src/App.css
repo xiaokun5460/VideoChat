@@ -1289,7 +1289,7 @@ jmnode.important {
   /* 确保内区域背景透明 */
 }
 
-/* 确保 Markdown 内容继承消息气泡��景色 */
+/* 确保 Markdown 内容继承消息气泡景色 */
 .message-bubble .message-content>* {
   background: transparent !important;
   /* 强制所有子元素背景透明 */
@@ -1389,6 +1389,15 @@ jmnodes.theme-primary jmnode.selected {
   flex-direction: column;
 }
 
+/* 分页容器样式 */
+.pagination-container {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* 表格容器样式 */
 .file-list-section .ant-table-wrapper {
   flex: 1;
@@ -1398,11 +1407,6 @@ jmnodes.theme-primary jmnode.selected {
 .file-list-section .ant-table {
   flex: 1;
   overflow: auto;
-}
-
-/* 分页组件样式 */
-.file-list-section .ant-table-pagination.ant-pagination {
-  margin: 16px 0;
 }
 
 /* 操作按钮区域样式 */

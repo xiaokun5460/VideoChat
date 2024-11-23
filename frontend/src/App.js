@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Layout, Upload, Button, Input, Card, message, Table, Tabs } from 'antd';
+import { Layout, Upload, Button, Input, Card, message, Table, Tabs, Pagination } from 'antd';
 import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
@@ -32,6 +32,7 @@ function App() {
     const [selectedFiles, setSelectedFiles] = useState([]);  // 存储选中的文件
     const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
     const [pageSize, setPageSize] = useState(5); // 默认每页显示5个文件
+    const [currentPage, setCurrentPage] = useState(1); // 添加当前页码状态
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
@@ -112,17 +113,26 @@ function App() {
 
     // 添加分页配置
     const paginationConfig = {
-        pageSize: pageSize, // 使用状态值
+        current: currentPage, // 当前页码
+        pageSize: pageSize,
         showSizeChanger: true,
         pageSizeOptions: ['5', '10', '20', '50'],
         showTotal: (total) => `共 ${total} 个文件`,
         onChange: (page, size) => {
-            console.log('Page:', page, 'PageSize:', size);
+            setCurrentPage(page); // 更新当前页码
+            setPageSize(size); // 更新每页显示数量
         },
         onShowSizeChange: (current, size) => {
-            setPageSize(size); // 更新分页大小状态
-            console.log('Current:', current, 'Size:', size);
+            setCurrentPage(1); // 切换每页显示数量时重置为第一页
+            setPageSize(size);
         },
+    };
+
+    // 计算当前页应该显示的文件
+    const getPageData = () => {
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        return uploadedFiles.slice(start, end);
     };
 
     // 文件列表列定义
@@ -456,7 +466,7 @@ function App() {
             'line-color': '#558B2F',
         };
 
-        // 注册主和样式
+        // 册主和样式
         if (jsMind.hasOwnProperty('register_theme')) {
             jsMind.register_theme('primary', customTheme);
         } else if (jsMind.hasOwnProperty('util') && jsMind.util.hasOwnProperty('register_theme')) {
@@ -884,7 +894,7 @@ function App() {
                     </div>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
-                            <p>需��待视频/音频完成转录</p>
+                            <p>需待视频/音频完成转录</p>
                         </div>
                     )}
                     <div className="markdown-content detailed-summary-content">
@@ -1073,9 +1083,9 @@ function App() {
                             rowSelection={{
                                 selectedRowKeys: selectedFiles,
                                 onChange: handleFileSelect,
-                                preserveSelectedRowKeys: true, // 保持选中状态，即使行被过滤或分页
+                                preserveSelectedRowKeys: true,
                             }}
-                            dataSource={uploadedFiles}
+                            dataSource={getPageData()} // 使用分页后的数据
                             columns={fileColumns}
                             rowKey="id"
                             size="small"
@@ -1086,8 +1096,14 @@ function App() {
                                     background: currentFile?.id === record.id ? '#e6f7ff' : 'inherit',
                                 },
                             })}
-                            pagination={paginationConfig}
+                            pagination={false}
                         />
+                        <div className="pagination-container">
+                            <Pagination
+                                {...paginationConfig}
+                                total={uploadedFiles.length}
+                            />
+                        </div>
                     </div>
                 </div>
             ),
