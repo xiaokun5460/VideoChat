@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Layout, Upload, Button, Input, Card, message, Table, Tabs } from 'antd';
-import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined } from '@ant-design/icons';
+import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
 import './App.css';
@@ -26,9 +26,11 @@ function App() {
     const [isGenerating, setIsGenerating] = useState(false);
     const abortController = useRef(null);
     const [isComposing, setIsComposing] = useState(false);
-    const mindmapContainerRef = useRef(null);
     const jmInstanceRef = useRef(null);
     const [mindmapData, setMindmapData] = useState(null);
+    const [uploadedFiles, setUploadedFiles] = useState([]);  // 存储上传的文件列表
+    const [selectedFiles, setSelectedFiles] = useState([]);  // 存储选中的文件
+    const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
 
     // 初始化 Mermaid
     React.useEffect(() => {
@@ -67,29 +69,170 @@ function App() {
             return false;
         }
 
+        // 检查文件是否已经存在
+        const isExist = uploadedFiles.some(f => f.name === file.name);
+        if (isExist) {
+            message.warning('文件已存在');
+            return false;
+        }
+
         // 创建文件的URL
         const url = URL.createObjectURL(file);
-        setMediaUrl({ url, type: isVideo ? 'video' : 'audio', file });
+        const newFile = {
+            id: Date.now(),  // 使用时间戳作为唯一ID
+            name: file.name,
+            type: isVideo ? 'video' : 'audio',
+            url: url,
+            file: file,
+            status: 'waiting',  // waiting, transcribing, done, error
+            transcription: null
+        };
 
-        // 自动开始转录
-        message.loading('开始上传并转录...', 0);
-        const formData = new FormData();
-        formData.append('file', file, file.name);
+        setUploadedFiles(prev => [...prev, newFile]);
+
+        // 如果是第一个文件，自动设置为当前预览文件
+        if (uploadedFiles.length === 0) {
+            setCurrentFile(newFile);
+            setMediaUrl({ url, type: isVideo ? 'video' : 'audio' });
+        }
+
+        return false; // 阻止自动上传
+    };
+
+    // 处理文件选择
+    const handleFileSelect = (fileIds) => {
+        setSelectedFiles(fileIds);
+    };
+
+    // 文件列表列定义
+    const fileColumns = [
+        {
+            title: '文件名',
+            dataIndex: 'name',
+            key: 'name',
+        },
+        {
+            title: '类型',
+            dataIndex: 'type',
+            key: 'type',
+            render: (type) => type === 'video' ? '视频' : '音频',
+        },
+        {
+            title: '状态',
+            dataIndex: 'status',
+            key: 'status',
+            render: (status) => {
+                switch (status) {
+                    case 'waiting': return '等待转录';
+                    case 'transcribing': return <><SyncOutlined spin /> 转录中</>;
+                    case 'done': return <span style={{ color: '#52c41a' }}>已完成</span>;
+                    case 'error': return <span style={{ color: '#ff4d4f' }}>失败</span>;
+                    default: return status;
+                }
+            },
+        },
+        {
+            title: '操作',
+            key: 'action',
+            render: (_, record) => (
+                <Button
+                    type="text"
+                    danger
+                    onClick={(e) => {
+                        e.stopPropagation();  // 阻止事件冒泡
+                        handleFileDelete(record.id);
+                    }}
+                    icon={<DeleteOutlined />}
+                >
+                    删除
+                </Button>
+            ),
+        },
+    ];
+
+    // 处理文件删除
+    const handleFileDelete = (fileId) => {
+        // 阻止事件冒泡，避免触发行点击事件
+        setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
+        setSelectedFiles(prev => prev.filter(id => id !== fileId));
+
+        // 如果删除的是当前预览的文件，切换到第一个可用文件
+        if (currentFile?.id === fileId) {
+            const remainingFiles = uploadedFiles.filter(file => file.id !== fileId);
+            const nextFile = remainingFiles[0];
+            if (nextFile) {
+                setCurrentFile(nextFile);
+                setMediaUrl({ url: nextFile.url, type: nextFile.type });
+                // 如果下一个文件有转录结果，显示它的转录结果
+                if (nextFile.transcription) {
+                    setTranscription(nextFile.transcription);
+                } else {
+                    setTranscription([]);
+                }
+            } else {
+                setCurrentFile(null);
+                setMediaUrl(null);
+                setTranscription([]);
+            }
+        }
+    };
+
+    // 处理文件预览切换
+    const handleFilePreview = (file) => {
+        setCurrentFile(file);
+        setMediaUrl({ url: file.url, type: file.type });
+    };
+
+    // 处理批量转录
+    const handleBatchTranscribe = async () => {
+        if (selectedFiles.length === 0) {
+            message.warning('请选择需要转录的文件');
+            return;
+        }
+
+        setIsTranscribing(true);
+        message.loading('开始转录选中的文件...', 0);
 
         try {
-            setIsTranscribing(true);
-            const response = await fetch('http://localhost:8000/api/upload', {
-                method: 'POST',
-                body: formData,
-            });
+            for (const fileId of selectedFiles) {
+                const file = uploadedFiles.find(f => f.id === fileId);
+                if (!file || file.status === 'transcribing') continue;
 
-            if (!response.ok) {
-                throw new Error('转录失败');
+                // 更新文件状态
+                setUploadedFiles(prev => prev.map(f =>
+                    f.id === fileId ? { ...f, status: 'transcribing' } : f
+                ));
+
+                const formData = new FormData();
+                formData.append('file', file.file, file.name);
+
+                const response = await fetch('http://localhost:8000/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`转录失败: ${file.name}`);
+                }
+
+                const data = await response.json();
+
+                // 更新文件状态和转录结果
+                setUploadedFiles(prev => prev.map(f =>
+                    f.id === fileId ? {
+                        ...f,
+                        status: 'done',
+                        transcription: data.transcription
+                    } : f
+                ));
+
+                // 如果是当前预览的文件，更新转录显示
+                if (currentFile?.id === fileId) {
+                    setTranscription(data.transcription);
+                }
             }
 
-            const data = await response.json();
-            setTranscription(data.transcription);
-            message.success('转录完成！');
+            message.success('所有选中文件转录完成！');
         } catch (error) {
             console.error('Transcription failed:', error);
             message.error('转录失败：' + error.message);
@@ -97,8 +240,6 @@ function App() {
             setIsTranscribing(false);
             message.destroy(); // 清除loading消息
         }
-
-        return false; // 阻止自动上传
     };
 
     // 检查是否有转录结果的函数
@@ -798,29 +939,59 @@ function App() {
                         )}
                     </div>
 
-                    <div className="transcription-section">
+                    <div className="file-list-section">
                         <div className="section-header">
                             <div className="section-title">
-                                <h3>转录结果</h3>
-                                {isTranscribing && (
-                                    <div className="transcription-progress">
-                                        <SyncOutlined spin />
-                                        <span>正在转录中...</span>
-                                    </div>
-                                )}
+                                <h3>文件列表</h3>
+                            </div>
+                            <div className="action-buttons">
+                                <Button
+                                    type="primary"
+                                    onClick={handleBatchTranscribe}
+                                    disabled={selectedFiles.length === 0 || isTranscribing}
+                                >
+                                    {isTranscribing ? '转录中...' : '开始转录'}
+                                </Button>
                             </div>
                         </div>
                         <Table
-                            dataSource={transcription.map((item, index) => ({
-                                ...item,
-                                key: index,
-                            }))}
-                            columns={transcriptionColumns}
-                            pagination={false}
+                            rowSelection={{
+                                selectedRowKeys: selectedFiles,
+                                onChange: handleFileSelect,
+                            }}
+                            dataSource={uploadedFiles}
+                            columns={fileColumns}
+                            rowKey="id"
                             size="small"
-                            className="transcription-table"
+                            onRow={(record) => ({
+                                onClick: () => handleFilePreview(record),
+                                style: {
+                                    cursor: 'pointer',
+                                    background: currentFile?.id === record.id ? '#e6f7ff' : 'inherit',
+                                },
+                            })}
                         />
                     </div>
+
+                    {currentFile?.transcription && (
+                        <div className="transcription-section">
+                            <div className="section-header">
+                                <div className="section-title">
+                                    <h3>转录结果</h3>
+                                </div>
+                            </div>
+                            <Table
+                                dataSource={currentFile.transcription.map((item, index) => ({
+                                    ...item,
+                                    key: index,
+                                }))}
+                                columns={transcriptionColumns}
+                                pagination={false}
+                                size="small"
+                                className="transcription-table"
+                            />
+                        </div>
+                    )}
                 </div>
             ),
         },
@@ -891,6 +1062,8 @@ function App() {
                         beforeUpload={handleUpload}
                         accept="video/*,audio/*"
                         showUploadList={false}
+                        multiple={true}  // 启用多文件上传
+                        directory={false}  // 不支持文件夹上传
                     >
                         <Button icon={<UploadOutlined />}>
                             上传本地文件
@@ -898,7 +1071,7 @@ function App() {
                     </Upload>
                 </div>
                 <div className="support-text">
-                    支持视频和音频文件格式
+                    支持多个视频和音频文件格式
                 </div>
             </div>
 

@@ -33,6 +33,23 @@
   margin-bottom: 12px;
 }
 
+.upload-section .ant-upload {
+  width: auto;
+}
+
+.upload-section .ant-btn {
+  padding: 0 20px;
+  height: 36px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.upload-section .anticon {
+  font-size: 16px;
+}
+
 .support-text {
   color: #666;
   font-size: 14px;
@@ -1316,4 +1333,53 @@ jmnodes.theme-primary jmnode:hover {
 jmnodes.theme-primary jmnode.selected {
   background-color: #e6f7ff;
   border-color: #91d5ff;
+}
+
+/* 文件列表区域样式 */
+.file-list-section {
+  margin: 20px 0;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+}
+
+.file-list-section .ant-table-tbody>tr {
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.file-list-section .ant-table-tbody>tr:hover {
+  background-color: #f5f5f5;
+}
+
+.file-list-section .ant-table-tbody>tr.selected {
+  background-color: #e6f7ff;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 调整预览区域的高度 */
+.preview-section {
+  height: 300px;
+  margin-bottom: 20px;
+}
+
+.video-container {
+  height: 100%;
+  padding-top: 0;
+}
+
+/* 文件状态样式 */
+.file-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.file-status .anticon {
+  font-size: 14px;
 }
