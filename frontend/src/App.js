@@ -628,51 +628,72 @@ function App() {
         },
     ];
 
-    // 添加导出函数
+    // 修改导出函数
     const handleExport = async (format) => {
-        if (!transcription || transcription.length === 0) {
-            message.warning('没有可导出的转录内容');
+        // 检查是否有选中的文件
+        if (selectedFiles.length === 0) {
+            message.warning('请选择需要导出的文件');
             return;
         }
 
         try {
-            const response = await fetch(`http://localhost:8000/api/export/${format}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(transcription),
-            });
+            // 显示导出进度
+            message.loading('正在导出选中的文件...', 0);
 
-            if (!response.ok) {
-                throw new Error('导出失败');
-            }
+            // 遍历选中的文件
+            for (const fileId of selectedFiles) {
+                const file = uploadedFiles.find(f => f.id === fileId);
 
-            // 获取文件名
-            const contentDisposition = response.headers.get('content-disposition');
-            let filename = `transcription.${format}`;
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-                if (filenameMatch) {
-                    filename = filenameMatch[1];
+                // 检查文件是否有转录结果
+                if (!file || !file.transcription || file.transcription.length === 0) {
+                    message.warning(`文件 "${file?.name}" 没有转录结果，已跳过`);
+                    continue;
+                }
+
+                try {
+                    const response = await fetch(`http://localhost:8000/api/export/${format}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(file.transcription),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`导出失败: ${file.name}`);
+                    }
+
+                    // 获取文件名
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let filename = `${file.name.replace(/\.[^/.]+$/, '')}_transcription.${format}`;
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+                        if (filenameMatch) {
+                            filename = filenameMatch[1];
+                        }
+                    }
+
+                    // 下载文件
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    message.success(`文件 "${file.name}" 导出成功`);
+                } catch (error) {
+                    message.error(`文件 "${file.name}" 导出失败：${error.message}`);
                 }
             }
-
-            // 下载文件
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            message.success('导出成功');
         } catch (error) {
             console.error('Export failed:', error);
             message.error('导出失败：' + error.message);
+        } finally {
+            message.destroy(); // 清除loading消息
         }
     };
 
