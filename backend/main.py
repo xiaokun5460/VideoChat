@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -73,6 +73,27 @@ async def get_detailed_summary(request: TextRequest):
             yield chunk
 
     return StreamingResponse(generate(), media_type="text/plain")
+
+@app.post("/api/export/summary")
+async def export_summary(summary: str = Body(...)):
+    try:
+        # 生成文件名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"summary_{timestamp}.md"
+        
+        # 创建临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".md") as temp_file:
+            temp_file.write(summary.encode('utf-8'))
+            temp_file.flush()
+            
+            return FileResponse(
+                path=temp_file.name,
+                filename=filename,
+                media_type="text/markdown",
+                background=None
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 def generate_vtt(transcription):
     vtt_content = "WEBVTT\n\n"

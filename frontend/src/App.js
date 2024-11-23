@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Layout, Upload, Button, Input, List, Card, message, Table, Tabs } from 'antd';
+import { Layout, Upload, Button, Input, Card, message, Table, Tabs } from 'antd';
 import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
@@ -213,7 +213,7 @@ function App() {
             });
 
             if (!response.ok) {
-                throw new Error('生成思维导图失败');
+                throw new Error('���成思维导图失败');
             }
 
             const data = await response.json();
@@ -421,6 +421,44 @@ function App() {
         }
     };
 
+    // 添加导出总结函数
+    const handleExportSummary = async (summaryText, type = 'summary') => {
+        if (!summaryText) {
+            message.warning('没有可导出的内容');
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/export/summary`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(summaryText),
+            });
+
+            if (!response.ok) {
+                throw new Error('导出失败');
+            }
+
+            // 下载文件
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${type}_${new Date().toISOString().slice(0, 10)}.md`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            message.success('导出成功');
+        } catch (error) {
+            console.error('Export failed:', error);
+            message.error('导出失败：' + error.message);
+        }
+    };
+
     // 修改标签页内容
     const tabItems = [
         {
@@ -428,12 +466,21 @@ function App() {
             label: '内容总结',
             children: (
                 <div className="tab-content">
-                    <Button
-                        onClick={handleSummary}
-                        disabled={!transcription || transcription.length === 0}
-                    >
-                        生成总结
-                    </Button>
+                    <div className="button-group">
+                        <Button
+                            onClick={handleSummary}
+                            disabled={!transcription || transcription.length === 0}
+                        >
+                            生成总结
+                        </Button>
+                        <Button
+                            onClick={() => handleExportSummary(summary)}
+                            icon={<DownloadOutlined />}
+                            disabled={!summary}
+                        >
+                            导出总结
+                        </Button>
+                    </div>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
                             <p>请先上传视频/音频并完成转录</p>
@@ -450,12 +497,21 @@ function App() {
             label: '详细总结',
             children: (
                 <div className="tab-content">
-                    <Button
-                        onClick={handleDetailedSummary}
-                        disabled={!transcription || transcription.length === 0}
-                    >
-                        生成详细总结
-                    </Button>
+                    <div className="button-group">
+                        <Button
+                            onClick={handleDetailedSummary}
+                            disabled={!transcription || transcription.length === 0}
+                        >
+                            生成详细总结
+                        </Button>
+                        <Button
+                            onClick={() => handleExportSummary(detailedSummary, 'detailed_summary')}
+                            icon={<DownloadOutlined />}
+                            disabled={!detailedSummary}
+                        >
+                            导出总结
+                        </Button>
+                    </div>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
                             <p>请先上传视频/音频并完成转录</p>
@@ -505,28 +561,29 @@ function App() {
             key: '4',
             label: '对话交互',
             children: (
-                <div className="tab-content">
+                <div className="tab-content chat-tab">
                     {(!transcription || transcription.length === 0) ? (
                         <div className="empty-state">
                             <p>请先上传视频/音频并完成转录</p>
                         </div>
                     ) : (
                         <>
-                            <List
-                                className="message-list"
-                                dataSource={messages}
-                                renderItem={item => (
-                                    <List.Item>
-                                        <Card
-                                            className={item.role === 'user' ? 'user-message' : 'ai-message'}
-                                            style={{ width: '100%' }}
-                                        >
-                                            {item.content}
-                                        </Card>
-                                    </List.Item>
-                                )}
-                            />
-                            <div style={{ display: 'flex', marginTop: '20px' }}>
+                            <div className="chat-messages">
+                                {messages.map((msg, index) => (
+                                    <div
+                                        key={index}
+                                        className={`message-wrapper ${msg.role === 'user' ? 'user' : 'assistant'}`}
+                                    >
+                                        <div className="message-bubble">
+                                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                        </div>
+                                        <div className="message-time">
+                                            {new Date().toLocaleTimeString()}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="chat-input-area">
                                 <TextArea
                                     value={inputMessage}
                                     onChange={e => setInputMessage(e.target.value)}
@@ -536,8 +593,8 @@ function App() {
                                             handleSendMessage();
                                         }
                                     }}
-                                    style={{ marginRight: '10px' }}
                                     placeholder="输入消息，按Enter发送，Shift+Enter换行"
+                                    autoSize={{ minRows: 1, maxRows: 4 }}
                                 />
                                 <Button
                                     type="primary"
