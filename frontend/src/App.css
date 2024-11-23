@@ -841,7 +841,7 @@ jmnode.important {
 
 .transcription-table .ant-table-body {
   height: calc(100% - 40px);
-  /* 减去表头高度 */
+  /* 减表头高度 */
   overflow-y: auto;
 }
 
@@ -849,8 +849,7 @@ jmnode.important {
 .video-container {
   position: relative;
   width: 100%;
-  padding-top: 40%;
-  /* 减小视频区域的高度比例 */
+  padding-top: 30%;
   background: #000;
   border-radius: 8px;
   overflow: hidden;
@@ -890,7 +889,7 @@ jmnode.important {
   background: #fafafa;
   border-radius: 8px;
   text-align: center;
-  height: 200px;
+  height: 120px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1378,15 +1377,15 @@ jmnodes.theme-primary jmnode.selected {
 
 /* 文件列表区域样式 */
 .file-list-section {
-  margin: 20px 0;
+  flex: 1;
+  margin-top: 20px;
   border: 1px solid #f0f0f0;
   border-radius: 8px;
   padding: 16px;
   background: #fff;
-  height: 100%;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* 分页容器样式 */
