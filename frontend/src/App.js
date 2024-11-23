@@ -97,7 +97,7 @@ function App() {
 
         setUploadedFiles(prev => [...prev, newFile]);
 
-        // 如果是第一个文件，自动设置为当前预览文件
+        // 如果是第一个文件，��动设置为当前预览文件
         if (uploadedFiles.length === 0) {
             setCurrentFile(newFile);
             setMediaUrl({ url, type: isVideo ? 'video' : 'audio' });
@@ -684,7 +684,7 @@ function App() {
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
 
-                    message.success(`文件 "${file.name}" 导出成功`);
+                    message.success(`文件 "${file.name}" 导出成��`);
                 } catch (error) {
                     message.error(`文件 "${file.name}" 导出失败：${error.message}`);
                 }
@@ -703,7 +703,7 @@ function App() {
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setDetailedSummary(''); // 清空现有总结
+            setDetailedSummary(''); // ���空现有总结
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -805,6 +805,39 @@ function App() {
     useEffect(() => {
         scrollToBottom();
     }, [messages, scrollToBottom]);
+
+    // 添加全部删除的处理函数
+    const handleDeleteAll = () => {
+        if (selectedFiles.length === 0) {
+            message.warning('请选择需要删除的文件');
+            return;
+        }
+
+        // 删除选中的文件
+        setUploadedFiles(prev => prev.filter(file => !selectedFiles.includes(file.id)));
+        setSelectedFiles([]); // 清空选中状态
+
+        // 如果当前预览的文件被删除，则切换到第一个可用文件
+        if (currentFile && selectedFiles.includes(currentFile.id)) {
+            const remainingFiles = uploadedFiles.filter(file => !selectedFiles.includes(file.id));
+            const nextFile = remainingFiles[0];
+            if (nextFile) {
+                setCurrentFile(nextFile);
+                setMediaUrl({ url: nextFile.url, type: nextFile.type });
+                if (nextFile.transcription) {
+                    setTranscription(nextFile.transcription);
+                } else {
+                    setTranscription([]);
+                }
+            } else {
+                setCurrentFile(null);
+                setMediaUrl(null);
+                setTranscription([]);
+            }
+        }
+
+        message.success('已删除选中的文件');
+    };
 
     // 修改标签页内容
     const tabItems = [
@@ -1090,6 +1123,14 @@ function App() {
                                     onClick={() => setSelectedFiles([])}
                                 >
                                     取消全选
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    danger
+                                    onClick={handleDeleteAll}
+                                    disabled={selectedFiles.length === 0}
+                                >
+                                    删除选中
                                 </Button>
                                 <Button
                                     type="primary"
