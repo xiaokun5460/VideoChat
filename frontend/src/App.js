@@ -31,6 +31,7 @@ function App() {
     const [uploadedFiles, setUploadedFiles] = useState([]);  // 存储上传的文件列表
     const [selectedFiles, setSelectedFiles] = useState([]);  // 存储选中的文件
     const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
+    const [pageSize, setPageSize] = useState(5); // 默认每页显示5个文件
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
@@ -111,8 +112,17 @@ function App() {
 
     // 添加分页配置
     const paginationConfig = {
-        pageSize: 7, // 确保每页显示7个文件
-        showSizeChanger: false, // 不允许用户改变每页显示数量
+        pageSize: pageSize, // 使用状态值
+        showSizeChanger: true,
+        pageSizeOptions: ['5', '10', '20', '50'],
+        showTotal: (total) => `共 ${total} 个文件`,
+        onChange: (page, size) => {
+            console.log('Page:', page, 'PageSize:', size);
+        },
+        onShowSizeChange: (current, size) => {
+            setPageSize(size); // 更新分页大小状态
+            console.log('Current:', current, 'Size:', size);
+        },
     };
 
     // 文件列表列定义
@@ -190,6 +200,13 @@ function App() {
     const handleFilePreview = (file) => {
         setCurrentFile(file);
         setMediaUrl({ url: file.url, type: file.type });
+
+        // 更新转录结果
+        if (file.transcription) {
+            setTranscription(file.transcription);
+        } else {
+            setTranscription([]);
+        }
     };
 
     // 处理批量转录
@@ -213,7 +230,7 @@ function App() {
                     continue;
                 }
 
-                // 更新文件状态
+                // 更新文状态
                 setUploadedFiles(prev => prev.map(f =>
                     f.id === fileId ? { ...f, status: 'transcribing' } : f
                 ));
@@ -260,7 +277,7 @@ function App() {
     // 检查是否有转录结果的函数
     const checkTranscription = () => {
         if (!transcription || transcription.length === 0) {
-            message.warning('请先上传视频/音频并完成转录');
+            message.warning('需等待视频/音频完成转录');
             return false;
         }
         return true;
@@ -367,6 +384,22 @@ function App() {
             setIsMindmapLoading(true);
             setMindmapData(null);  // 清空现有数据
 
+            // 清空思维导图容器
+            const container = document.getElementById('mindmap_container');
+            if (container) {
+                while (container.firstChild) {
+                    container.removeChild(container.firstChild);
+                }
+                // 添加加载状态的 DOM
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'mindmap-loading';
+                loadingDiv.innerHTML = `
+                    <div class="loading-spinner"></div>
+                    <p>正在生成思维导图...</p>
+                `;
+                container.appendChild(loadingDiv);
+            }
+
             const response = await fetch('http://localhost:8000/api/mindmap', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -423,14 +456,14 @@ function App() {
             'line-color': '#558B2F',
         };
 
-        // 注册主题和样式
+        // 注册主和样式
         if (jsMind.hasOwnProperty('register_theme')) {
             jsMind.register_theme('primary', customTheme);
         } else if (jsMind.hasOwnProperty('util') && jsMind.util.hasOwnProperty('register_theme')) {
             jsMind.util.register_theme('primary', customTheme);
         }
 
-        // 注册节点��式
+        // 注册节点式
         const nodeStyles = {
             important: {
                 'background-color': '#e6f7ff',
@@ -820,7 +853,7 @@ function App() {
                     </div>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
-                            <p>请先上传视频/音频并完成转录</p>
+                            <p>需等待视频/音频完成转录</p>
                         </div>
                     )}
                     <div className="markdown-content">
@@ -839,7 +872,7 @@ function App() {
                             onClick={handleDetailedSummary}
                             disabled={!transcription || transcription.length === 0}
                         >
-                            生成详细总结
+                            生成详总结
                         </Button>
                         <Button
                             onClick={() => handleExportSummary(detailedSummary, 'detailed_summary')}
@@ -851,7 +884,7 @@ function App() {
                     </div>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
-                            <p>请先上传视频/音频并完成转录</p>
+                            <p>需��待视频/音频完成转录</p>
                         </div>
                     )}
                     <div className="markdown-content detailed-summary-content">
@@ -874,7 +907,7 @@ function App() {
                     </Button>
                     {(!transcription || transcription.length === 0) && (
                         <div className="empty-state">
-                            <p>请先上传视频/音频并完成转录</p>
+                            <p>需等待视频/音频完成转录</p>
                         </div>
                     )}
                     <div id="mindmap_container" className="mindmap-container">
@@ -895,7 +928,7 @@ function App() {
                 <div className="tab-content chat-tab">
                     {(!transcription || transcription.length === 0) ? (
                         <div className="empty-state">
-                            <p>请先上传视频/音频并完成转录</p>
+                            <p>需等待视频/音频完成转录</p>
                         </div>
                     ) : (
                         <>
@@ -1015,6 +1048,19 @@ function App() {
                             </div>
                             <div className="action-buttons">
                                 <Button
+                                    onClick={() => {
+                                        const allFileIds = uploadedFiles.map(file => file.id);
+                                        setSelectedFiles(allFileIds);
+                                    }}
+                                >
+                                    全选
+                                </Button>
+                                <Button
+                                    onClick={() => setSelectedFiles([])}
+                                >
+                                    取消全选
+                                </Button>
+                                <Button
                                     type="primary"
                                     onClick={handleBatchTranscribe}
                                     disabled={selectedFiles.length === 0 || isTranscribing}
@@ -1027,6 +1073,7 @@ function App() {
                             rowSelection={{
                                 selectedRowKeys: selectedFiles,
                                 onChange: handleFileSelect,
+                                preserveSelectedRowKeys: true, // 保持选中状态，即使行被过滤或分页
                             }}
                             dataSource={uploadedFiles}
                             columns={fileColumns}

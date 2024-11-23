@@ -307,8 +307,10 @@ jmnode.important {
 .video-container {
   position: relative;
   width: 100%;
-  padding-top: 45%;
-  /* 16:9 宽高比 */
+  padding-top: 30%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .video-player {
@@ -884,10 +886,14 @@ jmnode.important {
 
 /* 音频播放器容器样式 */
 .audio-container {
-  padding: 24px;
+  padding: 16px;
   background: #fafafa;
   border-radius: 8px;
   text-align: center;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .audio-placeholder {
@@ -904,6 +910,8 @@ jmnode.important {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: nowrap;
+  /* 防止换行 */
 }
 
 .section-title {
@@ -1281,7 +1289,7 @@ jmnode.important {
   /* 确保内区域背景透明 */
 }
 
-/* 确保 Markdown 内容继承消息气泡的背景色 */
+/* 确保 Markdown 内容继承消息气泡��景色 */
 .message-bubble .message-content>* {
   background: transparent !important;
   /* 强制所有子元素背景透明 */
@@ -1297,10 +1305,10 @@ jmnode.important {
   opacity: 0;
   transition: opacity 0.3s ease;
   background: transparent !important;
-  /* 确保按钮背景透明 */
+  /* 确保按钮背景透 */
 }
 
-/* 鼠标悬停时显示复制按钮 */
+/* 鼠标悬停显示复制按钮 */
 .message-bubble:hover .copy-button {
   opacity: 1;
 }
@@ -1381,51 +1389,38 @@ jmnodes.theme-primary jmnode.selected {
   flex-direction: column;
 }
 
-.file-list-section .ant-table-tbody>tr {
-  cursor: pointer;
-  transition: all 0.3s;
+/* 表格容器样式 */
+.file-list-section .ant-table-wrapper {
+  flex: 1;
+  overflow: auto;
 }
 
-.file-list-section .ant-table-tbody>tr:hover {
-  background-color: #f5f5f5;
+.file-list-section .ant-table {
+  flex: 1;
+  overflow: auto;
 }
 
-.file-list-section .ant-table-tbody>tr.selected {
-  background-color: #e6f7ff;
+/* 分页组件样式 */
+.file-list-section .ant-table-pagination.ant-pagination {
+  margin: 16px 0;
 }
 
+/* 操作按钮区域样式 */
 .action-buttons {
   display: flex;
   gap: 8px;
-}
-
-/* 调整预览区域的高度 */
-.preview-section {
-  height: 300px;
-  margin-bottom: 20px;
-}
-
-.video-container {
-  height: 100%;
-  padding-top: 0;
-}
-
-/* 文件状态样式 */
-.file-status {
-  display: flex;
+  /* 按钮之间的间隔 */
   align-items: center;
-  gap: 4px;
+  /* 垂直居中对齐 */
+  flex-direction: row;
+  /* 确保按钮水平排列 */
 }
 
-.file-status .anticon {
-  font-size: 14px;
-}
-
-.file-list-section .ant-table-pagination {
-  position: sticky;
-  bottom: 0;
-  background: #fff;
-  z-index: 1;
-  padding: 8px 16px;
-  border-top: 1px solid #f0f0f0;
+/* 按钮样式 */
+.action-buttons .ant-btn {
+  margin: 0;
+  /* 移除按钮默认外边距 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
