@@ -96,8 +96,6 @@ async def generate_mindmap(text: str) -> str:
         )
         
         full_response = response.choices[0].message.content.strip()
-        print("\n=== AI 返回的原始内容 ===")
-        print(full_response)
         
         # 清理 AI 返回的内容
         def clean_response(response_text: str) -> str:
@@ -115,37 +113,21 @@ async def generate_mindmap(text: str) -> str:
         
         # 清理响应内容
         cleaned_response = clean_response(full_response)
-        print("\n=== 清理后的内容 ===")
-        print(cleaned_response)
         
         # 尝试解析 JSON
         try:
-            print("\n=== 开始解析 JSON ===")
             mindmap_data = json.loads(cleaned_response)
-            print("JSON 解析成功")
             
             # 验证数据结构
-            print("\n=== 验证数据结构 ===")
             if not all(key in mindmap_data for key in ['meta', 'format', 'data']):
-                print("错误：缺少必要的顶级字段")
                 raise ValueError("Missing required fields in mindmap data")
             
             if not all(key in mindmap_data['data'] for key in ['id', 'topic']):
-                print("错误：data 对象缺少必要字段")
                 raise ValueError("Missing required fields in mindmap data.data")
-            
-            print("数据结构验证通过")
-            
-            # 打印最终的数据结构
-            print("\n=== 最终的思维导图数据 ===")
-            print(json.dumps(mindmap_data, ensure_ascii=False, indent=2))
             
             return json.dumps(mindmap_data, ensure_ascii=False)
             
         except json.JSONDecodeError as e:
-            print(f"\n=== JSON 解析错误 ===")
-            print(f"错误信息: {str(e)}")
-            print(f"问题内容: {cleaned_response}")
             # 返回错误提示结构
             error_mindmap = {
                 "meta": {
@@ -169,10 +151,8 @@ async def generate_mindmap(text: str) -> str:
             return json.dumps(error_mindmap, ensure_ascii=False)
         
     except Exception as e:
-        print(f"\n=== 发生异常 ===")
         print(f"错误类型: {type(e).__name__}")
         print(f"错误信息: {str(e)}")
-        print(f"完整响应: {full_response if 'full_response' in locals() else 'No response'}")
         raise
 
 async def chat_with_model(messages: List[ChatMessage], context: str):
@@ -206,7 +186,7 @@ async def generate_detailed_summary(text: str):
             2. 包含主要内容、关键点、背景信息等
             3. 分点列出重要观点
             4. 添加适当的标题和分隔符
-            5. 如有必要，可以添加引用和列表
+            5. 如有必要，可以添加��用和列表
             """},
             {"role": "user", "content": text}
         ],
