@@ -87,13 +87,16 @@ function App() {
         // 创建文件的URL
         const url = URL.createObjectURL(file);
         const newFile = {
-            id: `${file.name}-${Date.now()}`,  // 使用文件名和时间戳组合作为唯一ID
+            id: `${file.name}-${Date.now()}`,
             name: file.name,
             type: isVideo ? 'video' : 'audio',
             url: url,
             file: file,
-            status: 'waiting',  // waiting, transcribing, done, error
-            transcription: null
+            status: 'waiting',
+            transcription: null,
+            summary: '',
+            detailedSummary: '',
+            mindmapData: null,
         };
 
         setUploadedFiles(prev => [...prev, newFile]);
@@ -214,11 +217,18 @@ function App() {
         setCurrentFile(file);
         setMediaUrl({ url: file.url, type: file.type });
 
-        // 更新转录结果
+        // 更新转录结果和其他内容
         if (file.transcription) {
             setTranscription(file.transcription);
+            // 更新其他内容状态
+            setSummary(file.summary || '');
+            setDetailedSummary(file.detailedSummary || '');
+            setMindmapData(file.mindmapData);
         } else {
             setTranscription([]);
+            setSummary('');
+            setDetailedSummary('');
+            setMindmapData(null);
         }
     };
 
@@ -360,7 +370,7 @@ function App() {
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setSummary(''); // 清空现有总结
+            setSummary(''); // 清空当前显示的总结
             const response = await fetch('http://localhost:8000/api/summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -371,7 +381,6 @@ function App() {
                 throw new Error('生成总结失败');
             }
 
-            // 使用 ReadableStream 处理式响应
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let summaryText = '';
@@ -380,24 +389,22 @@ function App() {
                 const { done, value } = await reader.read();
                 if (done) break;
 
-                // 解码并添加新的文本块
                 const chunk = decoder.decode(value, { stream: true });
                 summaryText += chunk;
 
-                // 尝试解析 JSON，如果是 JSON 则提取文本内容
                 try {
                     const jsonResponse = JSON.parse(summaryText);
                     setSummary(jsonResponse.summary || summaryText);
                 } catch {
-                    // 如果不是 JSON，直接使用文本
                     setSummary(summaryText);
                 }
             }
 
-            const summaryContent = document.querySelector('.markdown-content');
-            if (summaryContent) {
-                summaryContent.scrollTop = summaryContent.scrollHeight;
-            }
+            // 更新文件对象中的总结内容
+            setUploadedFiles(prev => prev.map(f =>
+                f.id === currentFile.id ? { ...f, summary: summaryText } : f
+            ));
+
         } catch (error) {
             console.error('Summary generation failed:', error);
             message.error('生成总结失败：' + error.message);
@@ -453,7 +460,7 @@ function App() {
         const text = transcription.map(item => item.text).join('\n');
         try {
             setIsMindmapLoading(true);
-            setMindmapData(null);  // 清空现有数据
+            setMindmapData(null);
 
             // 清空思维导图容器
             const container = document.getElementById('mindmap_container');
@@ -461,7 +468,6 @@ function App() {
                 while (container.firstChild) {
                     container.removeChild(container.firstChild);
                 }
-                // 添加加载状态的 DOM
                 const loadingDiv = document.createElement('div');
                 loadingDiv.className = 'mindmap-loading';
                 loadingDiv.innerHTML = `
@@ -482,7 +488,13 @@ function App() {
             }
 
             const data = await response.json();
-            setMindmapData(data.mindmap);  // 设置数据
+            setMindmapData(data.mindmap);
+
+            // 更新文件对象中的思维导图数据
+            setUploadedFiles(prev => prev.map(f =>
+                f.id === currentFile.id ? { ...f, mindmapData: data.mindmap } : f
+            ));
+
         } catch (error) {
             console.error('Failed to generate mindmap:', error);
             message.error('生成思维导图失败：' + error.message);
@@ -758,13 +770,13 @@ function App() {
         }
     };
 
-    // 添加详细总结函数
+    // 修改详细总结函数
     const handleDetailedSummary = async () => {
         if (!checkTranscription()) return;
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setDetailedSummary(''); // 空现有总结
+            setDetailedSummary('');
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -788,11 +800,11 @@ function App() {
                 setDetailedSummary(summaryText);
             }
 
-            // 滚动到底部
-            const summaryContent = document.querySelector('.detailed-summary-content');
-            if (summaryContent) {
-                summaryContent.scrollTop = summaryContent.scrollHeight;
-            }
+            // 更新文件对象中的详细总结内容
+            setUploadedFiles(prev => prev.map(f =>
+                f.id === currentFile.id ? { ...f, detailedSummary: summaryText } : f
+            ));
+
         } catch (error) {
             console.error('Detailed summary generation failed:', error);
             message.error('生成详细总结失败：' + error.message);
@@ -1003,9 +1015,17 @@ function App() {
                             导出总结
                         </Button>
                     </div>
-                    {selectedFiles.length === 0 ? (
+                    {!currentFile ? (
                         <div className="empty-state">
-                            <p>请在左侧选择需要生成总结的文件</p>
+                            <p>请在左侧选择要查看总结的文件</p>
+                        </div>
+                    ) : !currentFile.transcription ? (
+                        <div className="empty-state">
+                            <p>当前文件尚未完成转录</p>
+                        </div>
+                    ) : !currentFile.summary ? (
+                        <div className="empty-state">
+                            <p>点击上方按钮生成简单总结</p>
                         </div>
                     ) : (
                         <div className="markdown-content">
@@ -1040,9 +1060,17 @@ function App() {
                             导出总结
                         </Button>
                     </div>
-                    {selectedFiles.length === 0 ? (
+                    {!currentFile ? (
                         <div className="empty-state">
-                            <p>请在左侧选择需要生成详细总结的文件</p>
+                            <p>请在左侧选择要查看详细总结的文件</p>
+                        </div>
+                    ) : !currentFile.transcription ? (
+                        <div className="empty-state">
+                            <p>当前文件尚未完成转录</p>
+                        </div>
+                    ) : !currentFile.detailedSummary ? (
+                        <div className="empty-state">
+                            <p>点击上方按钮生成详细总结</p>
                         </div>
                     ) : (
                         <div className="markdown-content detailed-summary-content">
@@ -1069,11 +1097,19 @@ function App() {
                     >
                         {isMindmapLoading ? '生成中...' : '生成思维导图'}
                     </Button>
-                    {selectedFiles.length === 0 ? (
+                    {!currentFile ? (
                         <div className="empty-state">
-                            <p>请在左侧选择需要生成思维导图的文件</p>
+                            <p>请在左侧选择要查看思维导图的文件</p>
                         </div>
-                    ) : mindmapData ? (
+                    ) : !currentFile.transcription ? (
+                        <div className="empty-state">
+                            <p>当前文件尚未完成转录</p>
+                        </div>
+                    ) : !currentFile.mindmapData ? (
+                        <div className="empty-state">
+                            <p>点击上方按钮生成思维导图</p>
+                        </div>
+                    ) : (
                         <div id="mindmap_container" className="mindmap-container">
                             {isMindmapLoading && (
                                 <div className="mindmap-loading">
@@ -1081,10 +1117,6 @@ function App() {
                                     <p>正在生成思维导图...</p>
                                 </div>
                             )}
-                        </div>
-                    ) : (
-                        <div className="empty-state">
-                            <p>点击上方按钮生成思维导图</p>
                         </div>
                     )}
                 </div>
@@ -1187,7 +1219,7 @@ function App() {
                                     <div className="audio-container">
                                         <div className="audio-placeholder">
                                             <SoundOutlined style={{ fontSize: '24px' }} />
-                                            <span>音频文件</span>
+                                            <span>音频文</span>
                                         </div>
                                         <audio
                                             ref={mediaRef}
