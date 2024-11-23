@@ -255,7 +255,7 @@ function App() {
         }
 
         if (selectedFiles.length === 0) {
-            message.warning('请选��需要转录的文件');
+            message.warning('请选需要转录的文件');
             return;
         }
 
@@ -907,21 +907,18 @@ function App() {
         ).length;
     };
 
-    // 修标签页内容
+    // 修改标签页内容
     const tabItems = [
         {
             key: '1',
             label: '转录结果',
             children: (
                 <div className="tab-content">
-                    <div className="section-header">
-                        <div className="section-title">
-                            <h3>转录结果</h3>
-                            <div className="selection-tip">
-                                {selectedFiles.length > 0 && (
-                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
-                                )}
-                            </div>
+                    <div className="export-section">
+                        <div className="selection-tip">
+                            {selectedFiles.length > 0 && (
+                                <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
+                            )}
                         </div>
                         <div className="export-buttons">
                             <Button.Group size="small">
@@ -953,21 +950,30 @@ function App() {
                         <div className="empty-state">
                             <p>请在左侧选择要查看转录结果的文件</p>
                         </div>
-                    ) : !currentFile.transcription ? (
-                        <div className="empty-state">
-                            <p>当前文件尚未完成转录</p>
-                        </div>
                     ) : (
-                        <Table
-                            dataSource={currentFile.transcription.map((item, index) => ({
-                                ...item,
-                                key: index,
-                            }))}
-                            columns={transcriptionColumns}
-                            pagination={false}
-                            size="small"
-                            className="transcription-table full-height"
-                        />
+                        <>
+                            {currentFile && (
+                                <div className="current-file-tip">
+                                    <span>当前文件：{currentFile.name}</span>
+                                </div>
+                            )}
+                            {!currentFile.transcription ? (
+                                <div className="empty-state">
+                                    <p>当前文件尚未完成转录</p>
+                                </div>
+                            ) : (
+                                <Table
+                                    dataSource={currentFile.transcription.map((item, index) => ({
+                                        ...item,
+                                        key: index,
+                                    }))}
+                                    columns={transcriptionColumns}
+                                    pagination={false}
+                                    size="small"
+                                    className="transcription-table full-height"
+                                />
+                            )}
+                        </>
                     )}
                 </div>
             ),
@@ -977,20 +983,15 @@ function App() {
             label: '简单总结',
             children: (
                 <div className="tab-content">
-                    <div className="section-header">
-                        <div className="section-title">
-                            <h3>简单总结</h3>
-                            <div className="selection-tip">
-                                {selectedFiles.length > 0 && (
-                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
-                                )}
-                            </div>
+                    {currentFile && (
+                        <div className="current-file-tip">
+                            <span>当前文件：{currentFile.name}</span>
                         </div>
-                    </div>
+                    )}
                     <div className="button-group">
                         <Button
                             onClick={handleSummary}
-                            disabled={selectedFiles.length === 0}
+                            disabled={!currentFile?.transcription}
                         >
                             生成总结
                         </Button>
@@ -1019,22 +1020,17 @@ function App() {
             label: '详细总结',
             children: (
                 <div className="tab-content">
-                    <div className="section-header">
-                        <div className="section-title">
-                            <h3>详细总结</h3>
-                            <div className="selection-tip">
-                                {selectedFiles.length > 0 && (
-                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
-                                )}
-                            </div>
+                    {currentFile && (
+                        <div className="current-file-tip">
+                            <span>当前文件：{currentFile.name}</span>
                         </div>
-                    </div>
+                    )}
                     <div className="button-group">
                         <Button
                             onClick={handleDetailedSummary}
-                            disabled={selectedFiles.length === 0}
+                            disabled={!currentFile?.transcription}
                         >
-                            生成详总结
+                            生成详细总结
                         </Button>
                         <Button
                             onClick={() => handleExportSummary(detailedSummary, 'detailed_summary')}
@@ -1061,20 +1057,15 @@ function App() {
             label: '思维导图',
             children: (
                 <div className="tab-content">
-                    <div className="section-header">
-                        <div className="section-title">
-                            <h3>思维导图</h3>
-                            <div className="selection-tip">
-                                {selectedFiles.length > 0 && (
-                                    <span>已选择 {getSelectedTranscribedFilesCount()} 个转录文件</span>
-                                )}
-                            </div>
+                    {currentFile && (
+                        <div className="current-file-tip">
+                            <span>当前文件：{currentFile.name}</span>
                         </div>
-                    </div>
+                    )}
                     <Button
                         onClick={handleMindmap}
                         loading={isMindmapLoading}
-                        disabled={isMindmapLoading || selectedFiles.length === 0 || getSelectedTranscribedFilesCount() === 0}
+                        disabled={isMindmapLoading || !currentFile?.transcription}
                     >
                         {isMindmapLoading ? '生成中...' : '生成思维导图'}
                     </Button>
