@@ -1,8 +1,9 @@
 from faster_whisper import WhisperModel
 import asyncio
 from typing import Optional
+from config import STT_CONFIG
 
-model = WhisperModel("tiny")
+model = WhisperModel(STT_CONFIG["whisper_model"])
 
 # 全局变量来跟踪转录状态
 should_stop = False
