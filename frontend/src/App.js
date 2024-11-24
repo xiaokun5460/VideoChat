@@ -121,7 +121,7 @@ function App() {
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
-        console.log('Uploaded Files:', uploadedFiles);
+        // console.log('Uploaded Files:', uploadedFiles);
     }, [uploadedFiles]);
 
     // 初始化 Mermaid
