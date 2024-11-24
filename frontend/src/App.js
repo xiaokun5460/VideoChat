@@ -900,7 +900,7 @@ function App() {
 
             // 初始化内容
             fileRef.detailedSummary = '';
-            // 强制更��� uploadedFiles 以触发重渲染
+            // 强制更新 uploadedFiles 以触发重渲染
             setUploadedFiles([...uploadedFiles]);
 
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
@@ -1224,7 +1224,7 @@ function App() {
                 <div className="tab-content">
                     {currentFile && (
                         <div className="current-file-tip">
-                            <span>当前���件：{currentFile.name}</span>
+                            <span>当前文件：{currentFile.name}</span>
                         </div>
                     )}
                     <Button
@@ -1360,7 +1360,7 @@ function App() {
                                     <div className="audio-container">
                                         <div className="audio-placeholder">
                                             <SoundOutlined style={{ fontSize: '24px' }} />
-                                            <span>频文</span>
+                                            <span>音频文件</span>
                                         </div>
                                         <audio
                                             ref={mediaRef}
@@ -1400,7 +1400,7 @@ function App() {
                                 <Button
                                     onClick={() => setSelectedFiles([])}
                                 >
-                                    取消选
+                                    取消全选
                                 </Button>
                                 <Button
                                     type="primary"
@@ -1457,7 +1457,7 @@ function App() {
         <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
             <div className="app-header" style={{ background: '#fff' }}>
                 <div className="title">
-                    <h1 style={{ color: '#000' }}>VideoChat：一键总结频与音频内容｜帮助解读的 AI 助手</h1>
+                    <h1 style={{ color: '#000' }}>VideoChat：一键总结视频与音频内容｜帮助解读的 AI 助手</h1>
                 </div>
                 <div className="header-right">
                     <a

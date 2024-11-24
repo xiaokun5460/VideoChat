@@ -183,7 +183,7 @@ async def generate_detailed_summary(text: str):
             2. 包含主要内容、关键点、背景信息等
             3. 分点列出重要观点
             4. 添加适当的标题和分隔符
-            5. 如有必要，可以添加��用和列表
+            5. 如有必要，可以添加表格和列表
             """},
             {"role": "user", "content": text}
         ],
