@@ -114,7 +114,6 @@ function App() {
     const abortController = useRef(null);
     const [isComposing, setIsComposing] = useState(false);
     const jmInstanceRef = useRef(null);
-    const [mindmapData, setMindmapData] = useState(null);
     const [uploadedFiles, setUploadedFiles] = useState([]);  // 存储上传的文件列表
     const [selectedFiles, setSelectedFiles] = useState([]);  // 存储选中的文件
     const [currentFile, setCurrentFile] = useState(null);    // 当前预览的文件
@@ -516,55 +515,15 @@ function App() {
         }
     };
 
-    // 使用 useEffect 监听 mindmapData 的变化
-    useEffect(() => {
-        if (mindmapData && !isMindmapLoading) {
-            const container = document.getElementById('mindmap_container');
-            if (!container) return;
-
-            // 清空容器
-            while (container.firstChild) {
-                container.removeChild(container.firstChild);
-            }
-
-            try {
-                const options = {
-                    container: 'mindmap_container',
-                    theme: 'primary',
-                    editable: false,
-                    view: {
-                        hmargin: 100,
-                        vmargin: 50,
-                        line_width: 2,
-                        line_color: '#558B2F'
-                    },
-                    layout: {
-                        hspace: 30,
-                        vspace: 20,
-                        pspace: 13
-                    }
-                };
-
-                const jm = new jsMind(options);
-                const data = typeof mindmapData === 'string'
-                    ? JSON.parse(mindmapData)
-                    : mindmapData;
-
-                jm.show(data);
-            } catch (error) {
-                console.error('Failed to render mindmap:', error);
-                container.innerHTML = '<div class="mindmap-error">思维导图渲染失败</div>';
-            }
-        }
-    }, [mindmapData, isMindmapLoading]);
-
     // 修改生成思维导图的函数
     const handleMindmap = async () => {
         if (!checkTranscription()) return;
         if (!currentFile) return;
 
+        const fileId = currentFile.id; // 保存当前文件ID
+
         // 检查当前文件是否正在生成思维导图
-        if (mindmapLoadingFiles.has(currentFile.id)) {
+        if (mindmapLoadingFiles.has(fileId)) {
             message.warning('该文件正在生成思维导图，请稍候');
             return;
         }
@@ -572,29 +531,16 @@ function App() {
         const text = transcription.map(item => item.text).join('\n');
         try {
             // 将当前文件添加到正在生成的集合中
-            setMindmapLoadingFiles(prev => new Set([...prev, currentFile.id]));
-            setIsMindmapLoading(true);
-            setMindmapData(null);
+            setMindmapLoadingFiles(prev => new Set([...prev, fileId]));
 
-            // 立即更新当前文件的显示状态
-            if (currentFile) {
-                setCurrentFile(prev => ({ ...prev, mindmapData: null }));
-            }
+            // 找到文件在 uploadedFiles 中的引用
+            const fileRef = uploadedFiles.find(f => f.id === fileId);
+            if (!fileRef) return;
 
-            // 清空思维导图容器
-            const container = document.getElementById('mindmap_container');
-            if (container) {
-                while (container.firstChild) {
-                    container.removeChild(container.firstChild);
-                }
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = 'mindmap-loading';
-                loadingDiv.innerHTML = `
-                    <div class="loading-spinner"></div>
-                    <p>正在生成思维导图...</p>
-                `;
-                container.appendChild(loadingDiv);
-            }
+            // 初始化内容
+            fileRef.mindmapData = null;
+            // 强制更新 uploadedFiles 以触发重渲染
+            setUploadedFiles([...uploadedFiles]);
 
             const response = await fetch('http://localhost:8000/api/mindmap', {
                 method: 'POST',
@@ -607,17 +553,11 @@ function App() {
             }
 
             const data = await response.json();
-            setMindmapData(data.mindmap);
-
-            // 同时更新当前文件的状态
-            if (currentFile) {
-                setCurrentFile(prev => ({ ...prev, mindmapData: data.mindmap }));
-            }
 
             // 更新文件对象中的思维导图数据
-            setUploadedFiles(prev => prev.map(f =>
-                f.id === currentFile.id ? { ...f, mindmapData: data.mindmap } : f
-            ));
+            fileRef.mindmapData = data.mindmap;
+            // 强制更新 uploadedFiles 以触发重渲染
+            setUploadedFiles([...uploadedFiles]);
 
         } catch (error) {
             console.error('Failed to generate mindmap:', error);
@@ -626,10 +566,9 @@ function App() {
             // 从正在生成的集合中移除当前文件
             setMindmapLoadingFiles(prev => {
                 const newSet = new Set(prev);
-                newSet.delete(currentFile.id);
+                newSet.delete(fileId);
                 return newSet;
             });
-            setIsMindmapLoading(false);
         }
     };
 
