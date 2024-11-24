@@ -48,17 +48,10 @@ async def upload_file(file: UploadFile = File(...)):
         transcription_task = asyncio.create_task(transcribe_audio(file_path))
         try:
             transcription = await transcription_task
-            # 检查文件是否被中断转录
-            if is_file_being_transcribed(file_path):
-                transcription_task = None
-                return {"transcription": transcription}
-            else:
-                # 如果文件不在转录列表中，说明已被中断
-                transcription_task = None
-                return JSONResponse(
-                    status_code=499,
-                    content={"status": "interrupted", "detail": "Transcription interrupted"}
-                )
+            transcription_task = None
+            # 如果转录成功完成，直接返回结果
+            return {"transcription": transcription}
+            
         except asyncio.CancelledError:
             # 确保任务被正确取消
             if not transcription_task.cancelled():

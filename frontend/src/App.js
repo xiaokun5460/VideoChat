@@ -289,11 +289,13 @@ function App() {
                 const file = uploadedFiles.find(f => f.id === fileId);
                 if (!file) continue;
 
+                // 修改这里：只跳过已完成的文件，允许中断状态的文件重新转录
                 if (file.status === 'done') {
                     message.info(`文件 "${file.name}" 已经转录完成，跳过此文件。`);
                     continue;
                 }
 
+                // 更新文件状态为转录中
                 setUploadedFiles(prev => prev.map(f =>
                     f.id === fileId ? { ...f, status: 'transcribing' } : f
                 ));
@@ -1183,7 +1185,7 @@ function App() {
                                             }
                                         }
                                     }}
-                                    placeholder="输入消息按Enter发送，Shift+Enter换行"
+                                    placeholder="���入消息按Enter发送，Shift+Enter换行"
                                     autoSize={{ minRows: 1, maxRows: 4 }}
                                     disabled={isGenerating}
                                 />
