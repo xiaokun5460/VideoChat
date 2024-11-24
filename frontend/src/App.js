@@ -9,6 +9,75 @@ import 'jsmind/style/jsmind.css';
 
 const { TextArea } = Input;
 
+// 修改内容展示组件
+const SummaryContent = ({ fileId, content, isLoading }) => {
+    const containerId = `summary-content-${fileId}`;
+
+    // 直接使用传入的 content，不再使用本地状态
+    return (
+        <div key={fileId} id={containerId} className="markdown-content">
+            <ReactMarkdown>{content || ''}</ReactMarkdown>
+        </div>
+    );
+};
+
+const DetailedSummaryContent = ({ fileId, content, isLoading }) => {
+    const containerId = `detailed-summary-content-${fileId}`;
+
+    return (
+        <div key={fileId} id={containerId} className="markdown-content detailed-summary-content">
+            <ReactMarkdown>{content || ''}</ReactMarkdown>
+        </div>
+    );
+};
+
+const MindmapContent = ({ fileId, content, isLoading }) => {
+    const containerId = `mindmap-container-${fileId}`;
+
+    useEffect(() => {
+        if (content && !isLoading) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            // 清空容器
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+
+            try {
+                const options = {
+                    container: containerId,
+                    theme: 'primary',
+                    editable: false,
+                    view: {
+                        hmargin: 100,
+                        vmargin: 50,
+                        line_width: 2,
+                        line_color: '#558B2F'
+                    },
+                    layout: {
+                        hspace: 30,
+                        vspace: 20,
+                        pspace: 13
+                    }
+                };
+
+                const jm = new jsMind(options);
+                const data = typeof content === 'string'
+                    ? JSON.parse(content)
+                    : content;
+
+                jm.show(data);
+            } catch (error) {
+                console.error('Failed to render mindmap:', error);
+                container.innerHTML = '<div class="mindmap-error">思维导图渲染失败</div>';
+            }
+        }
+    }, [content, isLoading, containerId, fileId]);
+
+    return <div key={fileId} id={containerId} className="mindmap-container" />;
+};
+
 function App() {
     const [transcription, setTranscription] = useState([]);
     const [summary, setSummary] = useState('');
@@ -34,6 +103,9 @@ function App() {
     const [pageSize, setPageSize] = useState(5); // 默认每页显示5个文件
     const [currentPage, setCurrentPage] = useState(1); // 添加当前页码状态
     const [abortTranscribing, setAbortTranscribing] = useState(false); // 添加停止转录状态
+    const [mindmapLoadingFiles, setMindmapLoadingFiles] = useState(new Set());
+    const [summaryLoadingFiles, setSummaryLoadingFiles] = useState(new Set());
+    const [detailedSummaryLoadingFiles, setDetailedSummaryLoadingFiles] = useState(new Set());
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
@@ -212,24 +284,12 @@ function App() {
         }
     };
 
-    // 处理文件预览切换
+    // 修改文件预览函数
     const handleFilePreview = (file) => {
-        setCurrentFile(file);
+        // 直接使用 uploadedFiles 中的引用
+        const currentFileRef = uploadedFiles.find(f => f.id === file.id);
+        setCurrentFile(currentFileRef);
         setMediaUrl({ url: file.url, type: file.type });
-
-        // 更新转录结果和其他内容
-        if (file.transcription) {
-            setTranscription(file.transcription);
-            // 更新其他内容状态
-            setSummary(file.summary || '');
-            setDetailedSummary(file.detailedSummary || '');
-            setMindmapData(file.mindmapData);
-        } else {
-            setTranscription([]);
-            setSummary('');
-            setDetailedSummary('');
-            setMindmapData(null);
-        }
     };
 
     // 修改批量转录函数
@@ -277,7 +337,7 @@ function App() {
             for (const fileId of selectedFiles) {
                 // 检查是否已经请求中断
                 if (abortTranscribing) {
-                    // 只将当前正在转录的文件状态改为中断
+                    // 只将当前在转的文件状态改为中断
                     setUploadedFiles(prev => prev.map(f =>
                         f.status === 'transcribing'
                             ? { ...f, status: 'interrupted' }
@@ -335,6 +395,11 @@ function App() {
                         ));
 
                         if (currentFile?.id === fileId) {
+                            setCurrentFile(prev => ({
+                                ...prev,
+                                status: 'done',
+                                transcription: data.transcription
+                            }));
                             setTranscription(data.transcription);
                         }
                     }
@@ -369,10 +434,28 @@ function App() {
     // 修改简单总结函数
     const handleSummary = async () => {
         if (!checkTranscription()) return;
+        if (!currentFile) return;
+
+        const fileId = currentFile.id;
+
+        if (summaryLoadingFiles.has(fileId)) {
+            message.warning('该文件正在生成总结，请稍候');
+            return;
+        }
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setSummary(''); // 清空当前显示的总结
+            setSummaryLoadingFiles(prev => new Set([...prev, fileId]));
+
+            // 找到文件在 uploadedFiles 中的引用
+            const fileRef = uploadedFiles.find(f => f.id === fileId);
+            if (!fileRef) return;
+
+            // 初始化内容
+            fileRef.summary = '';
+            // 强制更新 uploadedFiles 以触发重渲染
+            setUploadedFiles([...uploadedFiles]);
+
             const response = await fetch('http://localhost:8000/api/summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -394,22 +477,21 @@ function App() {
                 const chunk = decoder.decode(value, { stream: true });
                 summaryText += chunk;
 
-                try {
-                    const jsonResponse = JSON.parse(summaryText);
-                    setSummary(jsonResponse.summary || summaryText);
-                } catch {
-                    setSummary(summaryText);
-                }
+                // 直接更新文件引用中的内容
+                fileRef.summary = summaryText;
+                // 强制更新 uploadedFiles 以触发重渲染
+                setUploadedFiles([...uploadedFiles]);
             }
-
-            // 更新文件对象中的总结内容
-            setUploadedFiles(prev => prev.map(f =>
-                f.id === currentFile.id ? { ...f, summary: summaryText } : f
-            ));
 
         } catch (error) {
             console.error('Summary generation failed:', error);
             message.error('生成总结失败：' + error.message);
+        } finally {
+            setSummaryLoadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(fileId);
+                return newSet;
+            });
         }
     };
 
@@ -458,11 +540,25 @@ function App() {
     // 修改生成思维导图的函数
     const handleMindmap = async () => {
         if (!checkTranscription()) return;
+        if (!currentFile) return;
+
+        // 检查当前文件是否正在生成思维导图
+        if (mindmapLoadingFiles.has(currentFile.id)) {
+            message.warning('该文件正在生成思维导图，请稍候');
+            return;
+        }
 
         const text = transcription.map(item => item.text).join('\n');
         try {
+            // 将当前文件添加到正在生成的集合中
+            setMindmapLoadingFiles(prev => new Set([...prev, currentFile.id]));
             setIsMindmapLoading(true);
             setMindmapData(null);
+
+            // 立即更新当前文件的显示状态
+            if (currentFile) {
+                setCurrentFile(prev => ({ ...prev, mindmapData: null }));
+            }
 
             // 清空思维导图容器
             const container = document.getElementById('mindmap_container');
@@ -492,6 +588,11 @@ function App() {
             const data = await response.json();
             setMindmapData(data.mindmap);
 
+            // 同时更新当前文件的状态
+            if (currentFile) {
+                setCurrentFile(prev => ({ ...prev, mindmapData: data.mindmap }));
+            }
+
             // 更新文件对象中的思维导图数据
             setUploadedFiles(prev => prev.map(f =>
                 f.id === currentFile.id ? { ...f, mindmapData: data.mindmap } : f
@@ -501,6 +602,12 @@ function App() {
             console.error('Failed to generate mindmap:', error);
             message.error('生成思维导图失败：' + error.message);
         } finally {
+            // 从正在生成的集合中移除当前文件
+            setMindmapLoadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(currentFile.id);
+                return newSet;
+            });
             setIsMindmapLoading(false);
         }
     };
@@ -705,14 +812,14 @@ function App() {
 
     // 修改导出函数
     const handleExport = async (format) => {
-        // 检查是否有选中的文件
+        // ���查是否有选中的文件
         if (selectedFiles.length === 0) {
             message.warning('请选择需要导出的文件');
             return;
         }
 
         try {
-            // 显示导出进度
+            // 显示导进度
             message.loading('正在导出选中的文件...', 0);
 
             // 遍历选中的文件
@@ -768,17 +875,35 @@ function App() {
             console.error('Export failed:', error);
             message.error('导出失败：' + error.message);
         } finally {
-            message.destroy(); // 清除loading消息
+            message.destroy(); // 清除loading息
         }
     };
 
     // 修改详细总结函数
     const handleDetailedSummary = async () => {
         if (!checkTranscription()) return;
+        if (!currentFile) return;
+
+        const fileId = currentFile.id;
+
+        if (detailedSummaryLoadingFiles.has(fileId)) {
+            message.warning('该文件正在生成详细总结，请稍候');
+            return;
+        }
 
         const text = transcription.map(item => item.text).join('\n');
         try {
-            setDetailedSummary('');
+            setDetailedSummaryLoadingFiles(prev => new Set([...prev, fileId]));
+
+            // 找到文件在 uploadedFiles 中的引用
+            const fileRef = uploadedFiles.find(f => f.id === fileId);
+            if (!fileRef) return;
+
+            // 初始化内容
+            fileRef.detailedSummary = '';
+            // 强制更新 uploadedFiles 以触发重渲染
+            setUploadedFiles([...uploadedFiles]);
+
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -799,17 +924,22 @@ function App() {
 
                 const chunk = decoder.decode(value, { stream: true });
                 summaryText += chunk;
-                setDetailedSummary(summaryText);
-            }
 
-            // 更新文件对象中的详细总结内容
-            setUploadedFiles(prev => prev.map(f =>
-                f.id === currentFile.id ? { ...f, detailedSummary: summaryText } : f
-            ));
+                // 直接更新文件引用中的内容
+                fileRef.detailedSummary = summaryText;
+                // 强制更新 uploadedFiles 以触发重渲染
+                setUploadedFiles([...uploadedFiles]);
+            }
 
         } catch (error) {
             console.error('Detailed summary generation failed:', error);
             message.error('生成详细总结失败：' + error.message);
+        } finally {
+            setDetailedSummaryLoadingFiles(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(fileId);
+                return newSet;
+            });
         }
     };
 
@@ -1005,14 +1135,15 @@ function App() {
                     <div className="button-group">
                         <Button
                             onClick={handleSummary}
-                            disabled={!currentFile?.transcription}
+                            loading={summaryLoadingFiles.has(currentFile?.id)}
+                            disabled={!currentFile?.transcription || summaryLoadingFiles.has(currentFile?.id)}
                         >
-                            生成总结
+                            {summaryLoadingFiles.has(currentFile?.id) ? '生成中...' : '生成总结'}
                         </Button>
                         <Button
-                            onClick={() => handleExportSummary(summary)}
+                            onClick={() => handleExportSummary(currentFile?.summary)}
                             icon={<DownloadOutlined />}
-                            disabled={!summary}
+                            disabled={!currentFile?.summary}
                         >
                             导出总结
                         </Button>
@@ -1030,9 +1161,11 @@ function App() {
                             <p>点击上方按钮生成简单总结</p>
                         </div>
                     ) : (
-                        <div className="markdown-content">
-                            <ReactMarkdown>{summary}</ReactMarkdown>
-                        </div>
+                        <SummaryContent
+                            fileId={currentFile.id}
+                            content={currentFile.summary}
+                            isLoading={summaryLoadingFiles.has(currentFile.id)}
+                        />
                     )}
                 </div>
             ),
@@ -1050,14 +1183,15 @@ function App() {
                     <div className="button-group">
                         <Button
                             onClick={handleDetailedSummary}
-                            disabled={!currentFile?.transcription}
+                            loading={detailedSummaryLoadingFiles.has(currentFile?.id)}
+                            disabled={!currentFile?.transcription || detailedSummaryLoadingFiles.has(currentFile?.id)}
                         >
-                            生成详细总结
+                            {detailedSummaryLoadingFiles.has(currentFile?.id) ? '生成中...' : '生成详细总结'}
                         </Button>
                         <Button
-                            onClick={() => handleExportSummary(detailedSummary, 'detailed_summary')}
+                            onClick={() => handleExportSummary(currentFile?.detailedSummary, 'detailed_summary')}
                             icon={<DownloadOutlined />}
-                            disabled={!detailedSummary}
+                            disabled={!currentFile?.detailedSummary}
                         >
                             导出总结
                         </Button>
@@ -1070,14 +1204,16 @@ function App() {
                         <div className="empty-state">
                             <p>当前文件尚未完成转录</p>
                         </div>
-                    ) : !currentFile.detailedSummary ? (
+                    ) : !currentFile.detailedSummary && !detailedSummaryLoadingFiles.has(currentFile.id) ? (
                         <div className="empty-state">
                             <p>点击上方按钮生成详细总结</p>
                         </div>
                     ) : (
-                        <div className="markdown-content detailed-summary-content">
-                            <ReactMarkdown>{detailedSummary}</ReactMarkdown>
-                        </div>
+                        <DetailedSummaryContent
+                            fileId={currentFile.id}
+                            content={currentFile.detailedSummary}
+                            isLoading={detailedSummaryLoadingFiles.has(currentFile.id)}
+                        />
                     )}
                 </div>
             ),
@@ -1094,10 +1230,10 @@ function App() {
                     )}
                     <Button
                         onClick={handleMindmap}
-                        loading={isMindmapLoading}
-                        disabled={isMindmapLoading || !currentFile?.transcription}
+                        loading={mindmapLoadingFiles.has(currentFile?.id)}
+                        disabled={!currentFile?.transcription || mindmapLoadingFiles.has(currentFile?.id)}
                     >
-                        {isMindmapLoading ? '生成中...' : '生成思维导图'}
+                        {mindmapLoadingFiles.has(currentFile?.id) ? '生成中...' : '生成思维导图'}
                     </Button>
                     {!currentFile ? (
                         <div className="empty-state">
@@ -1107,19 +1243,16 @@ function App() {
                         <div className="empty-state">
                             <p>当前文件尚未完成转录</p>
                         </div>
-                    ) : !currentFile.mindmapData ? (
+                    ) : !currentFile.mindmapData && !mindmapLoadingFiles.has(currentFile.id) ? (
                         <div className="empty-state">
                             <p>点击上方按钮生成思维导图</p>
                         </div>
                     ) : (
-                        <div key={currentFile.id} id="mindmap_container" className="mindmap-container">
-                            {isMindmapLoading && (
-                                <div className="mindmap-loading">
-                                    <div className="loading-spinner"></div>
-                                    <p>正在生成思维导图...</p>
-                                </div>
-                            )}
-                        </div>
+                        <MindmapContent
+                            fileId={currentFile.id}
+                            content={currentFile.mindmapData}
+                            isLoading={mindmapLoadingFiles.has(currentFile.id)}
+                        />
                     )}
                 </div>
             ),
@@ -1185,7 +1318,7 @@ function App() {
                                             }
                                         }
                                     }}
-                                    placeholder="���入消息按Enter发送，Shift+Enter换行"
+                                    placeholder="入消息按Enter发送，Shift+Enter换行"
                                     autoSize={{ minRows: 1, maxRows: 4 }}
                                     disabled={isGenerating}
                                 />
@@ -1268,7 +1401,7 @@ function App() {
                                 <Button
                                     onClick={() => setSelectedFiles([])}
                                 >
-                                    取消全选
+                                    取消选
                                 </Button>
                                 <Button
                                     type="primary"
@@ -1325,7 +1458,7 @@ function App() {
         <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
             <div className="app-header" style={{ background: '#fff' }}>
                 <div className="title">
-                    <h1 style={{ color: '#000' }}>VideoChat：一键总结视频与音频内容｜帮助解读的 AI 助手</h1>
+                    <h1 style={{ color: '#000' }}>VideoChat：一键总结频与音频内容｜帮助解读的 AI 助手</h1>
                 </div>
                 <div className="header-right">
                     <a

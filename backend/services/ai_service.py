@@ -67,9 +67,6 @@ async def generate_mindmap(text: str) -> str:
             }
         }
 
-        print("\n=== 开始生成思维导图 ===")
-        print(f"输入文本: {text[:200]}...")  # 打印前200个字符
-
         response = await client.chat.completions.create(
             model=AI_CONFIG["model"],
             messages=[
