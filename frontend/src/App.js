@@ -98,16 +98,11 @@ const MindmapContent = ({ fileId, content, isLoading }) => {
 
 function App() {
     const [transcription, setTranscription] = useState([]);
-    const [summary, setSummary] = useState('');
-    // eslint-disable-next-line no-unused-vars
-    const [mindmap, setMindmap] = useState('');
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
     const [mediaUrl, setMediaUrl] = useState(null);
     const [isTranscribing, setIsTranscribing] = useState(false);
-    const [isMindmapLoading, setIsMindmapLoading] = useState(false);
     const mediaRef = useRef(null);
-    const [detailedSummary, setDetailedSummary] = useState('');
     const [isUserScrolling, setIsUserScrolling] = useState(false);
     const messagesEndRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -746,7 +741,7 @@ function App() {
                     ]);
                 } catch (error) {
                     if (error.name === 'AbortError') {
-                        // 在被中断时立即退出循环
+                        // 在被中���时立即退出循环
                         break;
                     }
                     throw error;
