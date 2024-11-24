@@ -13,3 +13,5 @@ build/
 # Project specific
 uploads/
 backend/config.py
+
+.DS_Store
