@@ -386,6 +386,7 @@ function App() {
                     }
 
                     if (!abortTranscribing) {  // 添加检查，确保没有中断请求
+                        // 更新文件状态和转录内容
                         setUploadedFiles(prev => prev.map(f =>
                             f.id === fileId ? {
                                 ...f,
@@ -394,12 +395,14 @@ function App() {
                             } : f
                         ));
 
+                        // 如果当前正在查看这个文件，立即更新显示的转录内容
                         if (currentFile?.id === fileId) {
                             setCurrentFile(prev => ({
                                 ...prev,
                                 status: 'done',
                                 transcription: data.transcription
                             }));
+                            // 更新转录结果显示
                             setTranscription(data.transcription);
                         }
                     }
@@ -812,7 +815,7 @@ function App() {
 
     // 修改导出函数
     const handleExport = async (format) => {
-        // ���查是否有选中的文件
+        // 查是否有选中的文件
         if (selectedFiles.length === 0) {
             message.warning('请选择需要导出的文件');
             return;
@@ -1318,7 +1321,7 @@ function App() {
                                             }
                                         }
                                     }}
-                                    placeholder="入消息按Enter发送，Shift+Enter换行"
+                                    placeholder="输入消息按Enter发送，Shift+Enter换行"
                                     autoSize={{ minRows: 1, maxRows: 4 }}
                                     disabled={isGenerating}
                                 />
