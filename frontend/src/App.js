@@ -412,15 +412,54 @@ function App() {
                             } : f
                         ));
 
-                        // 如果当前正在查看这个文件，立即更新显示的转录内容
+                        // 如果当前正在查看这个文件，更新所有相关状态
                         if (currentFile?.id === fileId) {
+                            // 更新当前文件状态
                             setCurrentFile(prev => ({
                                 ...prev,
                                 status: 'done',
                                 transcription: data.transcription
                             }));
+
                             // 更新转录结果显示
                             setTranscription(data.transcription);
+
+                            // 清空之前的生成内容，因为转录内容已更新
+                            if (currentFile.summary) {
+                                setUploadedFiles(prev => prev.map(f =>
+                                    f.id === fileId ? { ...f, summary: null } : f
+                                ));
+                            }
+                            if (currentFile.detailedSummary) {
+                                setUploadedFiles(prev => prev.map(f =>
+                                    f.id === fileId ? { ...f, detailedSummary: null } : f
+                                ));
+                            }
+                            if (currentFile.mindmapData) {
+                                setUploadedFiles(prev => prev.map(f =>
+                                    f.id === fileId ? { ...f, mindmapData: null } : f
+                                ));
+                            }
+
+                            // 清空消息历史，因为上下文已更新
+                            setMessages([]);
+
+                            // 移除所有生成状态
+                            setSummaryLoadingFiles(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(fileId);
+                                return newSet;
+                            });
+                            setDetailedSummaryLoadingFiles(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(fileId);
+                                return newSet;
+                            });
+                            setMindmapLoadingFiles(prev => {
+                                const newSet = new Set(prev);
+                                newSet.delete(fileId);
+                                return newSet;
+                            });
                         }
                     }
                 } catch (error) {
@@ -861,7 +900,7 @@ function App() {
 
             // 初始化内容
             fileRef.detailedSummary = '';
-            // 强制更新 uploadedFiles 以触发重渲染
+            // 强制更��� uploadedFiles 以触发重渲染
             setUploadedFiles([...uploadedFiles]);
 
             const response = await fetch('http://localhost:8000/api/detailed-summary', {
@@ -1185,7 +1224,7 @@ function App() {
                 <div className="tab-content">
                     {currentFile && (
                         <div className="current-file-tip">
-                            <span>当前文件：{currentFile.name}</span>
+                            <span>当前���件：{currentFile.name}</span>
                         </div>
                     )}
                     <Button
