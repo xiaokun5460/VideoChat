@@ -97,12 +97,16 @@ const MindmapContent = ({ fileId, content, isLoading }) => {
 };
 
 function App() {
-    const [transcription, setTranscription] = useState([]);
+    const [summary, setSummary] = useState('');
+    // eslint-disable-next-line no-unused-vars
+    const [mindmap, setMindmap] = useState('');
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
     const [mediaUrl, setMediaUrl] = useState(null);
     const [isTranscribing, setIsTranscribing] = useState(false);
+    const [isMindmapLoading, setIsMindmapLoading] = useState(false);
     const mediaRef = useRef(null);
+    const [detailedSummary, setDetailedSummary] = useState('');
     const [isUserScrolling, setIsUserScrolling] = useState(false);
     const messagesEndRef = useRef(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -121,7 +125,7 @@ function App() {
 
     // 打印 uploadedFiles 的变化
     useEffect(() => {
-        // console.log('Uploaded Files:', uploadedFiles);
+        console.log('Uploaded Files:', uploadedFiles);
     }, [uploadedFiles]);
 
     // 初始化 Mermaid
@@ -283,22 +287,15 @@ function App() {
             if (nextFile) {
                 setCurrentFile(nextFile);
                 setMediaUrl({ url: nextFile.url, type: nextFile.type });
-                if (nextFile.transcription) {
-                    setTranscription(nextFile.transcription);
-                } else {
-                    setTranscription([]);
-                }
             } else {
                 setCurrentFile(null);
                 setMediaUrl(null);
-                setTranscription([]);
             }
         }
     };
 
     // 修改文件预览函数
     const handleFilePreview = (file) => {
-        // 直接使用 uploadedFiles 中的引用
         const currentFileRef = uploadedFiles.find(f => f.id === file.id);
         setCurrentFile(currentFileRef);
         setMediaUrl({ url: file.url, type: file.type });
@@ -398,63 +395,23 @@ function App() {
                     }
 
                     if (!abortTranscribing) {  // 添加检查，确保没有中断请求
-                        // 更新文件状态和转录内容
-                        setUploadedFiles(prev => prev.map(f =>
-                            f.id === fileId ? {
-                                ...f,
-                                status: 'done',
-                                transcription: data.transcription
-                            } : f
-                        ));
+                        setUploadedFiles(prev => {
+                            const newFiles = prev.map(f =>
+                                f.id === fileId ? {
+                                    ...f,
+                                    status: 'done',
+                                    transcription: data.transcription
+                                } : f
+                            );
+                            return newFiles;
+                        });
 
-                        // 如果当前正在查看这个文件，更新所有相关状态
                         if (currentFile?.id === fileId) {
-                            // 更新当前文件状态
                             setCurrentFile(prev => ({
                                 ...prev,
                                 status: 'done',
                                 transcription: data.transcription
                             }));
-
-                            // 更新转录结果显示
-                            setTranscription(data.transcription);
-
-                            // 清空之前的生成内容，因为转录内容已更新
-                            if (currentFile.summary) {
-                                setUploadedFiles(prev => prev.map(f =>
-                                    f.id === fileId ? { ...f, summary: null } : f
-                                ));
-                            }
-                            if (currentFile.detailedSummary) {
-                                setUploadedFiles(prev => prev.map(f =>
-                                    f.id === fileId ? { ...f, detailedSummary: null } : f
-                                ));
-                            }
-                            if (currentFile.mindmapData) {
-                                setUploadedFiles(prev => prev.map(f =>
-                                    f.id === fileId ? { ...f, mindmapData: null } : f
-                                ));
-                            }
-
-                            // 清空消息历史，因为上下文已更新
-                            setMessages([]);
-
-                            // 移除所有生成状态
-                            setSummaryLoadingFiles(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(fileId);
-                                return newSet;
-                            });
-                            setDetailedSummaryLoadingFiles(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(fileId);
-                                return newSet;
-                            });
-                            setMindmapLoadingFiles(prev => {
-                                const newSet = new Set(prev);
-                                newSet.delete(fileId);
-                                return newSet;
-                            });
                         }
                     }
                 } catch (error) {
@@ -478,7 +435,7 @@ function App() {
 
     // 检查是否有转录结果的函数
     const checkTranscription = () => {
-        if (!transcription || transcription.length === 0) {
+        if (!currentFile?.transcription || currentFile.transcription.length === 0) {
             message.warning('需等待视频/音频完成转录');
             return false;
         }
@@ -497,7 +454,7 @@ function App() {
             return;
         }
 
-        const text = transcription.map(item => item.text).join('\n');
+        const text = currentFile.transcription.map(item => item.text).join('\n');
         try {
             setSummaryLoadingFiles(prev => new Set([...prev, fileId]));
 
@@ -562,7 +519,7 @@ function App() {
             return;
         }
 
-        const text = transcription.map(item => item.text).join('\n');
+        const text = currentFile.transcription.map(item => item.text).join('\n');
         try {
             // 将当前文件添加到正在生成的集合中
             setMindmapLoadingFiles(prev => new Set([...prev, fileId]));
@@ -712,7 +669,7 @@ function App() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     messages: currentMessages,
-                    context: transcription.map(item => item.text).join('\n'),
+                    context: currentFile?.transcription.map(item => item.text).join('\n'),
                 }),
                 signal: abortController.current.signal
             });
@@ -741,7 +698,7 @@ function App() {
                     ]);
                 } catch (error) {
                     if (error.name === 'AbortError') {
-                        // 在被中���时立即退出循环
+                        // 在被中断时立即退出循环
                         break;
                     }
                     throw error;
@@ -885,7 +842,7 @@ function App() {
             return;
         }
 
-        const text = transcription.map(item => item.text).join('\n');
+        const text = currentFile.transcription.map(item => item.text).join('\n');
         try {
             setDetailedSummaryLoadingFiles(prev => new Set([...prev, fileId]));
 
@@ -1023,15 +980,9 @@ function App() {
             if (nextFile) {
                 setCurrentFile(nextFile);
                 setMediaUrl({ url: nextFile.url, type: nextFile.type });
-                if (nextFile.transcription) {
-                    setTranscription(nextFile.transcription);
-                } else {
-                    setTranscription([]);
-                }
             } else {
                 setCurrentFile(null);
                 setMediaUrl(null);
-                setTranscription([]);
             }
         }
 
@@ -1355,7 +1306,7 @@ function App() {
                                     <div className="audio-container">
                                         <div className="audio-placeholder">
                                             <SoundOutlined style={{ fontSize: '24px' }} />
-                                            <span>音频文件</span>
+                                            <span>频文</span>
                                         </div>
                                         <audio
                                             ref={mediaRef}
@@ -1395,7 +1346,7 @@ function App() {
                                 <Button
                                     onClick={() => setSelectedFiles([])}
                                 >
-                                    取消全选
+                                    取消选
                                 </Button>
                                 <Button
                                     type="primary"
@@ -1452,7 +1403,7 @@ function App() {
         <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
             <div className="app-header" style={{ background: '#fff' }}>
                 <div className="title">
-                    <h1 style={{ color: '#000' }}>VideoChat：一键总结视频与音频内容｜帮助解读的 AI 助手</h1>
+                    <h1 style={{ color: '#000' }}>VideoChat：一键总结频与音频内容｜帮助解读的 AI 助手</h1>
                 </div>
                 <div className="header-right">
                     <a

@@ -1424,7 +1424,7 @@ jmnodes.theme-primary jmnode.selected {
   align-items: center;
   /* 垂直居中对齐 */
   flex-direction: row;
-  /* 确保按钮水平排列 */
+  /* 确保按钮水排列 */
 }
 
 /* 按钮样式 */
