@@ -247,7 +247,7 @@ function App() {
                     throw new Error('停止转录失败');
                 }
 
-                // 将正在转录的文件状态改为中断
+                // 只将正在转录的文件状态改为中断
                 setUploadedFiles(prev => prev.map(f =>
                     f.status === 'transcribing'
                         ? { ...f, status: 'interrupted' }
@@ -275,12 +275,11 @@ function App() {
 
         try {
             for (const fileId of selectedFiles) {
-                // 只检查 abortTranscribing 状态
+                // 检查是否已经请求中断
                 if (abortTranscribing) {
-                    // 将未开始和正在转录的文件状态改为中断
+                    // 只将当前正在转录的文件状态改为中断
                     setUploadedFiles(prev => prev.map(f =>
-                        selectedFiles.includes(f.id) &&
-                            (f.status === 'waiting' || f.status === 'transcribing')
+                        f.status === 'transcribing'
                             ? { ...f, status: 'interrupted' }
                             : f
                     ));
@@ -311,12 +310,13 @@ function App() {
                     const data = await response.json();
 
                     if (response.status === 499) {
-                        // 处理转录中断的情况
+                        // 处理转录中断的情况，只更新当前文件状态
                         setUploadedFiles(prev => prev.map(f =>
-                            f.id === fileId ? { ...f, status: 'interrupted' } : f
+                            f.id === fileId
+                                ? { ...f, status: 'interrupted' }
+                                : f
                         ));
-                        // 不显示错误消息，因为这是用户主动中断
-                        continue;
+                        break; // 中断后续文件的转录
                     }
 
                     if (!response.ok) {
@@ -1226,7 +1226,7 @@ function App() {
                                     <div className="audio-container">
                                         <div className="audio-placeholder">
                                             <SoundOutlined style={{ fontSize: '24px' }} />
-                                            <span>音频文</span>
+                                            <span>频文</span>
                                         </div>
                                         <audio
                                             ref={mediaRef}

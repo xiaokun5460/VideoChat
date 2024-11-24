@@ -7,7 +7,7 @@ from typing import List
 import os
 import tempfile
 from datetime import datetime
-from backend.services.stt_service import transcribe_audio, stop_transcription
+from backend.services.stt_service import transcribe_audio, stop_transcription, is_file_being_transcribed
 from backend.services.ai_service import generate_summary, generate_mindmap, chat_with_model, generate_detailed_summary
 from backend.models import ChatMessage, ChatRequest
 import asyncio
@@ -48,8 +48,17 @@ async def upload_file(file: UploadFile = File(...)):
         transcription_task = asyncio.create_task(transcribe_audio(file_path))
         try:
             transcription = await transcription_task
-            transcription_task = None
-            return {"transcription": transcription}
+            # 检查文件是否被中断转录
+            if is_file_being_transcribed(file_path):
+                transcription_task = None
+                return {"transcription": transcription}
+            else:
+                # 如果文件不在转录列表中，说明已被中断
+                transcription_task = None
+                return JSONResponse(
+                    status_code=499,
+                    content={"status": "interrupted", "detail": "Transcription interrupted"}
+                )
         except asyncio.CancelledError:
             # 确保任务被正确取消
             if not transcription_task.cancelled():
@@ -57,7 +66,7 @@ async def upload_file(file: UploadFile = File(...)):
             transcription_task = None
             # 返回特定的状态码和消息
             return JSONResponse(
-                status_code=499,  # 使用499表示客户端主动取消请求
+                status_code=499,
                 content={"status": "interrupted", "detail": "Transcription interrupted"}
             )
             
