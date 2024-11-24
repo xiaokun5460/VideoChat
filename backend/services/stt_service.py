@@ -1,7 +1,7 @@
 from faster_whisper import WhisperModel
 import asyncio
 from typing import Optional
-from config import STT_CONFIG
+from backend.config import STT_CONFIG
 
 model = WhisperModel(STT_CONFIG["whisper_model"])
 
