@@ -11,6 +11,7 @@
   text-align: center;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
 }
 
 .logo-title {
@@ -1423,7 +1424,7 @@ jmnodes.theme-primary jmnode.selected {
   align-items: center;
   /* 垂直居中对齐 */
   flex-direction: row;
-  /* 确保按钮水平排列 */
+  /* 确保按钮水���排列 */
 }
 
 /* 按钮样式 */
@@ -1530,4 +1531,118 @@ jmnodes.theme-primary jmnode.selected {
   background-color: #f5f5f5 !important;
   border-color: #d9d9d9 !important;
   color: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 头部布局 */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Github链接样式 */
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+  font-size: 16px;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.github-link:hover {
+  background: #f5f5f5;
+  color: #1890ff;
+}
+
+.github-link .anticon {
+  font-size: 20px;
+}
+
+/* 作者信息样式 */
+.author-info {
+  font-size: 14px;
+  color: #666;
+}
+
+.github-link:hover .author-info {
+  color: #1890ff;
+}
+
+/* 标题区域样式调整 */
+.title h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .title h1 {
+    font-size: 18px;
+  }
+}
+
+/* 修改头部相关样式 */
+.app-header {
+  padding: 12px 20px;
+  text-align: center;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: relative;
+  /* 添加相对定位 */
+}
+
+.title {
+  margin-bottom: 12px;
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+/* Github链接定位到右上角 */
+.header-right {
+  position: absolute;
+  right: 20px;
+  top: 12px;
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #333;
+  font-size: 16px;
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .header-right {
+    position: static;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+
+  .title h1 {
+    font-size: 18px;
+  }
 }

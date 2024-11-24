@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Layout, Upload, Button, Input, Card, message, Table, Tabs, Pagination } from 'antd';
-import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons';
+import { UploadOutlined, SendOutlined, SoundOutlined, SyncOutlined, DownloadOutlined, CopyOutlined, StopOutlined, DeleteOutlined, GithubOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import Mermaid from 'mermaid';
 import './App.css';
@@ -842,7 +842,7 @@ function App() {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            message.success('导出��功');
+            message.success('导出功');
         } catch (error) {
             console.error('Export failed:', error);
             message.error('导出失败：' + error.message);
@@ -1325,13 +1325,24 @@ function App() {
                 <div className="title">
                     <h1 style={{ color: '#000' }}>VideoChat：一键总结视频与音频内容｜帮助解读的 AI 助手</h1>
                 </div>
+                <div className="header-right">
+                    <a
+                        href="https://github.com/Airmomo/VideoChat"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="github-link"
+                    >
+                        <GithubOutlined />
+                        <span className="author-info">By Airmomo</span>
+                    </a>
+                </div>
                 <div className="upload-section">
                     <Upload
                         beforeUpload={handleUpload}
                         accept="video/*,audio/*"
                         showUploadList={false}
-                        multiple={true}  // 启用多文件上传
-                        directory={false}  // 不支持文件夹上传
+                        multiple={true}
+                        directory={false}
                     >
                         <Button icon={<UploadOutlined />}>
                             上传本地文件
