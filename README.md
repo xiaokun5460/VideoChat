@@ -73,6 +73,10 @@ cp config.template.py config.py
 cd ..
 python app.py
 ```
+或者
+```bash
+uvicorn backend.main:app --reload
+```
 - 后端默认运行在`http://localhost:8000`
 - 你可以修改`app.py`文件中的`host`和`port`来修改后端地址。
 
