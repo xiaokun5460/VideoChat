@@ -817,7 +817,7 @@ function App() {
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
 
-                    message.success(`文件 "${file.name}" 导出成`);
+                    message.success(`文件 "${file.name}" 导出成功`);
                 } catch (error) {
                     message.error(`文件 "${file.name}" 导出失败：${error.message}`);
                 }
@@ -925,7 +925,7 @@ function App() {
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            message.success('导出功');
+            message.success('导出成功');
         } catch (error) {
             console.error('Export failed:', error);
             message.error('导出失败：' + error.message);
@@ -1306,7 +1306,7 @@ function App() {
                                     <div className="audio-container">
                                         <div className="audio-placeholder">
                                             <SoundOutlined style={{ fontSize: '24px' }} />
-                                            <span>频文</span>
+                                            <span>音频文件</span>
                                         </div>
                                         <audio
                                             ref={mediaRef}
@@ -1346,7 +1346,7 @@ function App() {
                                 <Button
                                     onClick={() => setSelectedFiles([])}
                                 >
-                                    取消选
+                                    取消全选
                                 </Button>
                                 <Button
                                     type="primary"
@@ -1403,7 +1403,7 @@ function App() {
         <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
             <div className="app-header" style={{ background: '#fff' }}>
                 <div className="title">
-                    <h1 style={{ color: '#000' }}>VideoChat：一键总结频与音频内容｜帮助解读的 AI 助手</h1>
+                    <h1 style={{ color: '#000' }}>VideoChat：一键总结视频与音频内容｜帮助解读的 AI 助手</h1>
                 </div>
                 <div className="header-right">
                     <a
