@@ -9,7 +9,6 @@ import {
   MenuOutlined,
   SettingOutlined,
   DownloadOutlined,
-  BulbOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
   GithubOutlined,
@@ -30,7 +29,6 @@ const ModernLayout = ({
   const [mobileDrawerVisible, setMobileDrawerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // 响应式检测
   useEffect(() => {
@@ -57,11 +55,7 @@ const ModernLayout = ({
     }
   };
 
-  // 主题切换
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'light' : 'dark');
-  };
+
 
   // 头部工具栏
   const HeaderToolbar = () => (
@@ -83,15 +77,6 @@ const ModernLayout = ({
       </div>
 
       <div className="header-right">
-        <Tooltip title="切换主题">
-          <Button
-            type="text"
-            icon={<BulbOutlined />}
-            onClick={toggleTheme}
-            className={`theme-btn ${isDarkMode ? 'dark' : 'light'}`}
-          />
-        </Tooltip>
-
         <Tooltip title="下载管理">
           <Badge count={downloadTasksCount} size="small">
             <Button

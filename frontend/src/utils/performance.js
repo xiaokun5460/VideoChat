@@ -307,34 +307,6 @@ export const performanceProfiler = {
   },
 };
 
-/**
- * Bundle分析工具
- */
-export const bundleAnalyzer = {
-  /**
-   * 分析当前加载的模块
-   */
-  analyzeModules: () => {
-    if (process.env.NODE_ENV === 'development' && window.__webpack_require__) {
-      const modules = Object.keys(window.__webpack_require__.cache);
-      console.log(`[Bundle] Loaded modules: ${modules.length}`);
-      return modules;
-    }
-    return [];
-  },
-
-  /**
-   * 获取Bundle大小信息
-   */
-  getBundleSize: () => {
-    const scripts = Array.from(document.querySelectorAll('script[src]'));
-    return scripts.map((script) => ({
-      src: script.src,
-      size: script.src.length, // 这只是一个近似值
-    }));
-  },
-};
-
 export default {
   useDebounce,
   useThrottle,
@@ -346,5 +318,4 @@ export default {
   useBatchedUpdates,
   createMemoComponent,
   performanceProfiler,
-  bundleAnalyzer,
 };

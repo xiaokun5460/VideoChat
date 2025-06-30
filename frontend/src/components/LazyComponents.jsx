@@ -41,20 +41,20 @@ export const LazyModernMediaPlayer = React.lazy(() =>
 );
 
 // 懒加载的转录视图组件
-export const LazyModernTranscriptionView = React.lazy(() => 
+export const LazyModernTranscriptionView = React.lazy(() =>
   import('./TranscriptionView/ModernTranscriptionView').then(module => ({
     default: module.default
   }))
 );
 
-
-
-// 懒加载的主题选择器组件
-export const LazyThemeSelector = React.lazy(() => 
-  import('./Theme/ThemeSelector').then(module => ({
+// 懒加载的下载管理器组件
+export const LazyDownloadManager = React.lazy(() =>
+  import('./DownloadManager/DownloadManager').then(module => ({
     default: module.default
   }))
 );
+
+
 
 /**
  * 高阶组件：为懒加载组件添加Suspense包装
@@ -95,12 +95,12 @@ export const SuspenseTranscriptionView = withSuspense(LazyModernTranscriptionVie
   size: 'default'
 });
 
-
-
-export const SuspenseThemeSelector = withSuspense(LazyThemeSelector, {
-  tip: '加载主题选择器...',
-  size: 'small'
+export const SuspenseDownloadManager = withSuspense(LazyDownloadManager, {
+  tip: '加载下载管理器...',
+  size: 'default'
 });
+
+
 
 /**
  * 预加载函数
@@ -111,7 +111,7 @@ export const preloadComponents = {
   fileManager: () => import('./FileManager/ModernFileManager'),
   mediaPlayer: () => import('./MediaPlayer/ModernMediaPlayer'),
   transcriptionView: () => import('./TranscriptionView/ModernTranscriptionView'),
-  themeSelector: () => import('./Theme/ThemeSelector'),
+  downloadManager: () => import('./DownloadManager/DownloadManager'),
 };
 
 /**
@@ -160,14 +160,14 @@ const LazyComponentsExport = {
   LazyModernFileManager,
   LazyModernMediaPlayer,
   LazyModernTranscriptionView,
-  LazyThemeSelector,
+  LazyDownloadManager,
 
   // 带Suspense的组件
   SuspenseAIFeatures,
   SuspenseFileManager,
   SuspenseMediaPlayer,
   SuspenseTranscriptionView,
-  SuspenseThemeSelector,
+  SuspenseDownloadManager,
 
   // 工具函数
   withSuspense,

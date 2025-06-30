@@ -1,135 +1,13 @@
 /**
- * 全局样式文件
- * 基于设计令牌的统一样式定义
+ * VideoChat 全局样式系统
+ * 基于现代设计系统的统一样式定义
  */
 
-/* CSS 自定义属性 - 基于设计令牌 */
-:root {
-  /* 颜色系统 */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
+/* 导入玻璃态效果工具类 */
+@import './glassEffects.css';
 
-  --color-success-50: #f0fdf4;
-  --color-success-500: #22c55e;
-  --color-success-600: #16a34a;
-
-  --color-warning-50: #fffbeb;
-  --color-warning-500: #f59e0b;
-  --color-warning-600: #d97706;
-
-  --color-error-50: #fef2f2;
-  --color-error-500: #ef4444;
-  --color-error-600: #dc2626;
-
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
-
-  --color-white: #ffffff;
-  --color-black: #000000;
-
-  /* 字体系统 */
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-family-mono: 'Fira Code', 'JetBrains Mono', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.25rem;
-  --font-size-2xl: 1.5rem;
-  --font-size-3xl: 1.875rem;
-  --font-size-4xl: 2.25rem;
-
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-
-  --line-height-tight: 1.25;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.625;
-
-  /* 间距系统 */
-  --spacing-1: 0.25rem;
-  --spacing-2: 0.5rem;
-  --spacing-3: 0.75rem;
-  --spacing-4: 1rem;
-  --spacing-5: 1.25rem;
-  --spacing-6: 1.5rem;
-  --spacing-8: 2rem;
-  --spacing-10: 2.5rem;
-  --spacing-12: 3rem;
-  --spacing-16: 4rem;
-  --spacing-20: 5rem;
-  --spacing-24: 6rem;
-
-  /* 圆角系统 */
-  --border-radius-sm: 0.125rem;
-  --border-radius-base: 0.25rem;
-  --border-radius-md: 0.375rem;
-  --border-radius-lg: 0.5rem;
-  --border-radius-xl: 0.75rem;
-  --border-radius-2xl: 1rem;
-  --border-radius-3xl: 1.5rem;
-  --border-radius-full: 9999px;
-
-  /* 阴影系统 */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-base: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-
-  /* 动画系统 */
-  --duration-fast: 150ms;
-  --duration-normal: 300ms;
-  --duration-slow: 500ms;
-  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
-
-  /* Z-index 系统 */
-  --z-dropdown: 1000;
-  --z-sticky: 1020;
-  --z-fixed: 1030;
-  --z-modal: 1040;
-  --z-popover: 1050;
-  --z-tooltip: 1060;
-  --z-toast: 1070;
-}
-
-/* 暗色主题 */
-[data-theme='dark'] {
-  --color-text-base: var(--color-gray-100);
-  --color-bg-base: var(--color-gray-900);
-  --color-bg-container: var(--color-gray-800);
-  --color-bg-layout: var(--color-gray-900);
-  --color-border: var(--color-gray-700);
-}
-
-/* 亮色主题 */
-[data-theme='light'] {
-  --color-text-base: var(--color-gray-900);
-  --color-bg-base: var(--color-white);
-  --color-bg-container: var(--color-white);
-  --color-bg-layout: var(--color-gray-50);
-  --color-border: var(--color-gray-200);
-}
+/* 导入原子化CSS工具类 */
+@import './utilities.css';
 
 /* 全局重置和基础样式 */
 * {
@@ -137,11 +15,11 @@
 }
 
 html {
-  line-height: var(--line-height-normal);
+  line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   -moz-tab-size: 4;
   tab-size: 4;
-  font-family: var(--font-family-sans);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-feature-settings: normal;
   font-variation-settings: normal;
 }
@@ -150,11 +28,20 @@ body {
   margin: 0;
   font-family: inherit;
   line-height: inherit;
-  color: var(--color-text-base);
-  background-color: var(--color-bg-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* 确保根元素基础样式 */
+#root {
+  min-height: 100vh;
+}
+
+/* ==================== 精确的主题覆盖 ==================== */
+
+/* 只覆盖需要主题适配的特定组件 */
+
+/* 组件特定样式覆盖 */
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
@@ -163,30 +50,18 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-gray-100);
-  border-radius: var(--border-radius-full);
+  background: #f3f4f6;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-gray-300);
-  border-radius: var(--border-radius-full);
-  transition: background-color var(--duration-fast) var(--easing-ease-out);
+  background: #d1d5db;
+  border-radius: 9999px;
+  transition: background-color 150ms cubic-bezier(0, 0, 0.2, 1);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gray-400);
-}
-
-[data-theme='dark'] ::-webkit-scrollbar-track {
-  background: var(--color-gray-800);
-}
-
-[data-theme='dark'] ::-webkit-scrollbar-thumb {
-  background: var(--color-gray-600);
-}
-
-[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gray-500);
+  background: #9ca3af;
 }
 
 /* 工具类 */
@@ -203,104 +78,104 @@ body {
 }
 
 .font-medium {
-  font-weight: var(--font-weight-medium);
+  font-weight: 500;
 }
 
 .font-semibold {
-  font-weight: var(--font-weight-semibold);
+  font-weight: 600;
 }
 
 .font-bold {
-  font-weight: var(--font-weight-bold);
+  font-weight: 700;
 }
 
 .text-sm {
-  font-size: var(--font-size-sm);
+  font-size: 0.875rem;
 }
 
 .text-base {
-  font-size: var(--font-size-base);
+  font-size: 1rem;
 }
 
 .text-lg {
-  font-size: var(--font-size-lg);
+  font-size: 1.125rem;
 }
 
 .text-xl {
-  font-size: var(--font-size-xl);
+  font-size: 1.25rem;
 }
 
 .text-2xl {
-  font-size: var(--font-size-2xl);
+  font-size: 1.5rem;
 }
 
 .rounded {
-  border-radius: var(--border-radius-base);
+  border-radius: 0.25rem;
 }
 
 .rounded-md {
-  border-radius: var(--border-radius-md);
+  border-radius: 0.375rem;
 }
 
 .rounded-lg {
-  border-radius: var(--border-radius-lg);
+  border-radius: 0.5rem;
 }
 
 .rounded-xl {
-  border-radius: var(--border-radius-xl);
+  border-radius: 0.75rem;
 }
 
 .rounded-2xl {
-  border-radius: var(--border-radius-2xl);
+  border-radius: 1rem;
 }
 
 .rounded-full {
-  border-radius: var(--border-radius-full);
+  border-radius: 9999px;
 }
 
 .shadow {
-  box-shadow: var(--shadow-base);
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
 .shadow-sm {
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 .shadow-md {
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .shadow-lg {
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 .shadow-xl {
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 /* 动画类 */
 .transition {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-timing-function: var(--easing-ease-in-out);
-  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 .transition-colors {
   transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: var(--easing-ease-in-out);
-  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 .transition-opacity {
   transition-property: opacity;
-  transition-timing-function: var(--easing-ease-in-out);
-  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 .transition-transform {
   transition-property: transform;
-  transition-timing-function: var(--easing-ease-in-out);
-  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
 }
 
 /* 响应式工具类 */
@@ -308,8 +183,8 @@ body {
   width: 100%;
   margin-left: auto;
   margin-right: auto;
-  padding-left: var(--spacing-4);
-  padding-right: var(--spacing-4);
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 @media (min-width: 640px) {

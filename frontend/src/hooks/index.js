@@ -14,11 +14,7 @@ export { useRequestCache, clearGlobalCache, getCacheStats } from './useRequestCa
 export { useAsyncOperation } from './useAsyncOperation';
 
 // 应用状态Hooks
-export { 
-  useFiles, 
-  useUIState, 
-  AppProvider 
-} from './useAppContext';
+export { useFiles, useUIState, AppProvider } from './useAppContext';
 
 // 主题Hooks
 export { useTheme, THEME_MODES } from './useTheme';
@@ -29,16 +25,19 @@ export { useAIFeatures } from './useAIFeatures';
 // 文件管理Hooks
 export { useFileManager } from './useFileManager';
 
+// 下载管理Hooks
+export { useDownloadManager } from './useDownloadManager';
+
 /**
  * Hooks使用指南
- * 
+ *
  * 1. 基础API调用：
  * ```javascript
  * import { useAPICall } from '@/hooks';
- * 
+ *
  * const MyComponent = () => {
  *   const { loading, error, data, execute } = useAPICall();
- *   
+ *
  *   const handleSubmit = async () => {
  *     try {
  *       const result = await execute(apiFunction, {
@@ -50,7 +49,7 @@ export { useFileManager } from './useFileManager';
  *       console.error('失败:', error);
  *     }
  *   };
- *   
+ *
  *   return (
  *     <Button loading={loading} onClick={handleSubmit}>
  *       提交
@@ -58,14 +57,14 @@ export { useFileManager } from './useFileManager';
  *   );
  * };
  * ```
- * 
+ *
  * 2. 流式API调用：
  * ```javascript
  * import { useStreamAPI } from '@/hooks';
- * 
+ *
  * const StreamComponent = () => {
  *   const { streaming, content, executeStream } = useStreamAPI();
- *   
+ *
  *   const handleStream = async () => {
  *     await executeStream(streamApiFunction, {
  *       onChunk: (chunk) => console.log('收到:', chunk),
@@ -73,7 +72,7 @@ export { useFileManager } from './useFileManager';
  *       onError: (error) => console.error('错误:', error)
  *     });
  *   };
- *   
+ *
  *   return (
  *     <div>
  *       <Button loading={streaming} onClick={handleStream}>
@@ -84,14 +83,14 @@ export { useFileManager } from './useFileManager';
  *   );
  * };
  * ```
- * 
+ *
  * 3. 文件上传：
  * ```javascript
  * import { useFileUpload } from '@/hooks';
- * 
+ *
  * const UploadComponent = () => {
  *   const { uploading, progress, upload } = useFileUpload();
- *   
+ *
  *   const handleUpload = async (file) => {
  *     try {
  *       const result = await upload(file, {
@@ -104,7 +103,7 @@ export { useFileManager } from './useFileManager';
  *       console.error('上传失败:', error);
  *     }
  *   };
- *   
+ *
  *   return (
  *     <Upload
  *       beforeUpload={handleUpload}
@@ -117,21 +116,21 @@ export { useFileManager } from './useFileManager';
  *   );
  * };
  * ```
- * 
+ *
  * 4. 批量API调用：
  * ```javascript
  * import { useBatchAPI } from '@/hooks';
- * 
+ *
  * const BatchComponent = () => {
  *   const { loading, progress, executeBatch } = useBatchAPI();
- *   
+ *
  *   const handleBatch = async () => {
  *     const apiCalls = [
  *       () => apiFunction1(),
  *       () => apiFunction2(),
  *       () => apiFunction3(),
  *     ];
- *     
+ *
  *     const result = await executeBatch(apiCalls, {
  *       maxConcurrency: 2,
  *       onProgress: (progress, completed, total) => {
@@ -142,7 +141,7 @@ export { useFileManager } from './useFileManager';
  *       }
  *     });
  *   };
- *   
+ *
  *   return (
  *     <Button loading={loading} onClick={handleBatch}>
  *       批量处理 {loading && `${progress.toFixed(1)}%`}
@@ -150,21 +149,21 @@ export { useFileManager } from './useFileManager';
  *   );
  * };
  * ```
- * 
+ *
  * 5. 请求缓存：
  * ```javascript
  * import { useRequestCache } from '@/hooks';
- * 
+ *
  * const CachedComponent = () => {
  *   const { loading, data, fetchWithCache } = useRequestCache('user-data', {
  *     ttl: 5 * 60 * 1000, // 5分钟缓存
  *     staleWhileRevalidate: true
  *   });
- *   
+ *
  *   useEffect(() => {
  *     fetchWithCache(getUserData, { userId: 123 });
  *   }, []);
- *   
+ *
  *   return (
  *     <div>
  *       {loading ? '加载中...' : JSON.stringify(data)}
@@ -172,24 +171,24 @@ export { useFileManager } from './useFileManager';
  *   );
  * };
  * ```
- * 
+ *
  * 6. 通用异步操作：
  * ```javascript
  * import { useAsyncOperation } from '@/hooks';
- * 
+ *
  * const AsyncComponent = () => {
  *   const { loading, data, error, execute } = useAsyncOperation({
  *     autoReset: true,
  *     autoResetDelay: 3000
  *   });
- *   
+ *
  *   const handleOperation = async () => {
  *     await execute(someAsyncFunction, {
  *       onSuccess: (result) => console.log('成功:', result),
  *       onError: (error) => console.error('失败:', error)
  *     });
  *   };
- *   
+ *
  *   return (
  *     <div>
  *       <Button loading={loading} onClick={handleOperation}>
@@ -211,23 +210,26 @@ export default {
   useBatchAPI,
   useFileUpload,
   useRequestCache,
-  
+
   // 通用
   useAsyncOperation,
-  
+
   // 应用状态
   useFiles,
   useUIState,
-  
+
   // 主题
   useTheme,
-  
+
   // AI功能
   useAIFeatures,
-  
+
   // 文件管理
   useFileManager,
-  
+
+  // 下载管理
+  useDownloadManager,
+
   // 工具函数
   clearGlobalCache,
   getCacheStats,

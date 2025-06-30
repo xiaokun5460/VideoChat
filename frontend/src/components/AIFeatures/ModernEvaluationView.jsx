@@ -4,7 +4,7 @@
  */
 
 
-import { useState } from 'react';
+
 import ReactMarkdown from 'react-markdown';
 import {
   Card,
@@ -28,6 +28,8 @@ import {
   PictureOutlined
 } from '@ant-design/icons';
 import { useContentExport } from '../../hooks/useContentExport';
+import { useClipboard } from '../../hooks/useClipboard';
+import { exportEvaluationReport } from '../../utils/exportUtils';
 
 import './StreamingStyles.css';
 
@@ -39,38 +41,21 @@ const ModernEvaluationView = ({
   loading = false,
   className = ''
 }) => {
-  const [copyLoading, setCopyLoading] = useState(false);
+  // 剪贴板Hook
+  const { copyToClipboard, loading: copyLoading } = useClipboard();
 
   // 内容导出Hook
   const { loading: exportLoading, exportToImage } = useContentExport();
 
   // 复制评价内容
   const handleCopy = async (content) => {
-    setCopyLoading(true);
-    try {
-      await navigator.clipboard.writeText(content);
-      // message.success('已复制到剪贴板');
-    } catch (error) {
-      console.error('Copy failed:', error);
-    } finally {
-      setCopyLoading(false);
-    }
+    await copyToClipboard(content);
   };
 
   // 导出评价报告
   const handleExport = () => {
     if (!file?.evaluation) return;
-    
-    const content = `# 智能教学评价报告\n\n## 课程信息\n- 文件：${file.name}\n- 评价时间：${new Date().toLocaleString()}\n\n## 评价内容\n\n${file.evaluation}`;
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${file.name}_智能评价.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    exportEvaluationReport(file);
   };
 
   // 导出评价为图片

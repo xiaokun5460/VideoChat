@@ -13,13 +13,7 @@ import { Spin } from 'antd';
  * @returns {React.ComponentType} 懒加载组件
  */
 export const createLazyComponent = (importFunc, options = {}) => {
-  const {
-    fallback = <Spin size="large" />,
-    retryCount = 3,
-    retryDelay = 1000,
-    onError = null,
-    preload = false
-  } = options;
+  const { fallback = <Spin size='large' />, retryCount = 3, retryDelay = 1000, onError = null, preload = false } = options;
 
   // 创建带重试机制的导入函数
   const importWithRetry = async (retries = retryCount) => {
@@ -28,10 +22,10 @@ export const createLazyComponent = (importFunc, options = {}) => {
     } catch (error) {
       if (retries > 0) {
         console.warn(`Component import failed, retrying... (${retryCount - retries + 1}/${retryCount})`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
         return importWithRetry(retries - 1);
       }
-      
+
       if (onError) {
         onError(error);
       }
@@ -71,34 +65,19 @@ export const createLazyComponent = (importFunc, options = {}) => {
  */
 export const routeComponents = {
   // 主要页面组件
-  Home: createLazyComponent(
-    () => import('../pages/Home'),
-    { preload: true }
-  ),
-  
+  Home: createLazyComponent(() => import('../pages/Home'), { preload: true }),
+
   // AI功能页面
-  AIFeatures: createLazyComponent(
-    () => import('../components/AIFeatures/ModernAIFeatures'),
-    { preload: true }
-  ),
-  
+  AIFeatures: createLazyComponent(() => import('../components/AIFeatures/ModernAIFeatures'), { preload: true }),
+
   // 文件管理页面
-  FileManager: createLazyComponent(
-    () => import('../components/FileManager/ModernFileManager'),
-    { preload: true }
-  ),
-  
+  FileManager: createLazyComponent(() => import('../components/FileManager/ModernFileManager'), { preload: true }),
+
   // 设置页面
-  Settings: createLazyComponent(
-    () => import('../pages/Settings'),
-    { preload: false }
-  ),
-  
+  Settings: createLazyComponent(() => import('../pages/Settings'), { preload: false }),
+
   // 关于页面
-  About: createLazyComponent(
-    () => import('../pages/About'),
-    { preload: false }
-  )
+  About: createLazyComponent(() => import('../pages/About'), { preload: false }),
 };
 
 /**
@@ -106,28 +85,13 @@ export const routeComponents = {
  */
 export const featureComponents = {
   // 媒体播放器
-  MediaPlayer: createLazyComponent(
-    () => import('../components/MediaPlayer/ModernMediaPlayer'),
-    { preload: false }
-  ),
-  
+  MediaPlayer: createLazyComponent(() => import('../components/MediaPlayer/ModernMediaPlayer'), { preload: false }),
+
   // 转录视图
-  TranscriptionView: createLazyComponent(
-    () => import('../components/TranscriptionView/ModernTranscriptionView'),
-    { preload: false }
-  ),
-  
-  // 流式演示
-  StreamDemo: createLazyComponent(
-    () => import('../components/StreamDemo/StreamDemo'),
-    { preload: false }
-  ),
-  
+  TranscriptionView: createLazyComponent(() => import('../components/TranscriptionView/ModernTranscriptionView'), { preload: false }),
+
   // 主题选择器
-  ThemeSelector: createLazyComponent(
-    () => import('../components/Theme/ThemeSelector'),
-    { preload: false }
-  )
+  ThemeSelector: createLazyComponent(() => import('../components/Theme/ThemeSelector'), { preload: false }),
 };
 
 /**
@@ -136,15 +100,15 @@ export const featureComponents = {
 export const dynamicLibraries = {
   // 图表库
   charts: () => import('recharts'),
-  
+
   // 日期处理库
   dayjs: () => import('dayjs'),
-  
+
   // 文件处理库
   fileUtils: () => import('../utils/fileUtils'),
-  
+
   // 导出功能
-  export: () => import('../utils/export')
+  export: () => import('../utils/export'),
 };
 
 /**
@@ -169,7 +133,7 @@ export class SmartPreloader {
 
     this.preloadQueue.push({ componentName, priority });
     this.preloadQueue.sort((a, b) => b.priority - a.priority);
-    
+
     this.processQueue();
   }
 
@@ -185,7 +149,7 @@ export class SmartPreloader {
 
     while (this.preloadQueue.length > 0) {
       const { componentName } = this.preloadQueue.shift();
-      
+
       try {
         await this.preloadComponent(componentName);
         this.preloadedComponents.add(componentName);
@@ -194,7 +158,7 @@ export class SmartPreloader {
       }
 
       // 在空闲时间继续处理
-      await new Promise(resolve => {
+      await new Promise((resolve) => {
         if ('requestIdleCallback' in window) {
           window.requestIdleCallback(resolve);
         } else {
@@ -212,7 +176,7 @@ export class SmartPreloader {
    */
   async preloadComponent(componentName) {
     const component = routeComponents[componentName] || featureComponents[componentName];
-    
+
     if (component && component.preload) {
       await component.preload();
     }
@@ -226,7 +190,7 @@ export class SmartPreloader {
   smartPreload(currentRoute, userHistory = []) {
     // 基于当前路由预测可能需要的组件
     const predictions = this.predictNextComponents(currentRoute, userHistory);
-    
+
     predictions.forEach(({ component, priority }) => {
       this.addToQueue(component, priority);
     });
@@ -244,16 +208,10 @@ export class SmartPreloader {
     // 基于当前路由的预测
     switch (currentRoute) {
       case '/':
-        predictions.push(
-          { component: 'FileManager', priority: 9 },
-          { component: 'AIFeatures', priority: 8 }
-        );
+        predictions.push({ component: 'FileManager', priority: 9 }, { component: 'AIFeatures', priority: 8 });
         break;
       case '/files':
-        predictions.push(
-          { component: 'MediaPlayer', priority: 8 },
-          { component: 'TranscriptionView', priority: 7 }
-        );
+        predictions.push({ component: 'MediaPlayer', priority: 8 }, { component: 'TranscriptionView', priority: 7 });
         break;
       default:
         break;
@@ -261,7 +219,7 @@ export class SmartPreloader {
 
     // 基于用户历史的预测
     const frequentComponents = this.analyzeUserHistory(userHistory);
-    frequentComponents.forEach(component => {
+    frequentComponents.forEach((component) => {
       predictions.push({ component, priority: 6 });
     });
 
@@ -275,8 +233,8 @@ export class SmartPreloader {
    */
   analyzeUserHistory(userHistory) {
     const componentUsage = {};
-    
-    userHistory.forEach(action => {
+
+    userHistory.forEach((action) => {
       if (action.component) {
         componentUsage[action.component] = (componentUsage[action.component] || 0) + 1;
       }
@@ -311,9 +269,9 @@ export const bundleAnalyzer = {
    */
   analyzeBundleSize: () => {
     const scripts = Array.from(document.querySelectorAll('script[src]'));
-    const chunks = scripts.map(script => ({
+    const chunks = scripts.map((script) => ({
       src: script.src,
-      size: script.src.length // 这只是一个估算
+      size: script.src.length, // 这只是一个估算
     }));
 
     console.table(chunks);
@@ -326,12 +284,12 @@ export const bundleAnalyzer = {
   monitorDynamicImports: () => {
     const originalImport = window.__webpack_require__;
     if (originalImport) {
-      window.__webpack_require__ = function(...args) {
+      window.__webpack_require__ = function (...args) {
         console.log('Dynamic import:', args);
         return originalImport.apply(this, args);
       };
     }
-  }
+  },
 };
 
 export default {
@@ -341,5 +299,5 @@ export default {
   dynamicLibraries,
   SmartPreloader,
   globalPreloader,
-  bundleAnalyzer
+  bundleAnalyzer,
 };

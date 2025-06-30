@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { App } from 'antd';
 import { useFiles } from './useAppContext';
 import { useAPICall } from './useAPI';
-import { uploadAndTranscribe } from '../services/api';
+import { uploadAndTranscribe, stopTranscription, transcribeDownloadedFile } from '../services/api';
 
 /**
  * 文件管理Hook
@@ -15,18 +15,8 @@ import { uploadAndTranscribe } from '../services/api';
  */
 export const useFileManager = () => {
   const { message } = App.useApp();
-  const {
-    files,
-    currentFile,
-    addFile,
-    removeFile,
-    updateFile,
-    selectFile,
-    addTranscribingFile,
-    removeTranscribingFile,
-    isFileTranscribing
-  } = useFiles();
-  
+  const { files, currentFile, addFile, removeFile, updateFile, selectFile, addTranscribingFile, removeTranscribingFile, isFileTranscribing } = useFiles();
+
   const transcribeAPI = useAPICall();
 
   /**
@@ -35,141 +25,191 @@ export const useFileManager = () => {
    * @param {Function} onSuccess - 成功回调
    * @param {Function} onError - 错误回调
    */
-  const handleFileUpload = useCallback(async (file, onSuccess, onError) => {
-    try {
-      // 检查文件类型
-      const isVideo = file.type.startsWith('video/');
-      const isAudio = file.type.startsWith('audio/');
+  const handleFileUpload = useCallback(
+    async (file, onSuccess, onError) => {
+      try {
+        // 检查文件类型
+        const isVideo = file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/');
 
-      if (!isVideo && !isAudio) {
-        message.error('请上传视频或音频文件');
-        onError?.('Invalid file type');
-        return;
+        if (!isVideo && !isAudio) {
+          message.error('请上传视频或音频文件');
+          onError?.('Invalid file type');
+          return;
+        }
+
+        // 检查文件是否已存在
+        const isExist = files.some((f) => f.name === file.name);
+        if (isExist) {
+          message.warning('文件已存在');
+          onError?.('File already exists');
+          return;
+        }
+
+        // 创建文件对象
+        const fileObj = {
+          name: file.name,
+          size: file.size,
+          type: isVideo ? 'video' : 'audio',
+          url: URL.createObjectURL(file),
+          file: file,
+          transcription: null,
+          summary: '',
+          detailedSummary: '',
+          mindmapData: null,
+          evaluation: '',
+          uploadTime: new Date().toISOString(),
+        };
+
+        // 添加文件到状态
+        addFile(fileObj);
+
+        // 如果是第一个文件，设为当前文件
+        if (files.length === 0) {
+          selectFile(fileObj);
+        }
+
+        message.success(`文件 "${file.name}" 上传成功`);
+        onSuccess?.();
+      } catch (error) {
+        console.error('File upload failed:', error);
+        message.error('文件上传失败');
+        onError?.(error);
       }
-
-      // 检查文件是否已存在
-      const isExist = files.some(f => f.name === file.name);
-      if (isExist) {
-        message.warning('文件已存在');
-        onError?.('File already exists');
-        return;
-      }
-
-      // 创建文件对象
-      const fileObj = {
-        name: file.name,
-        size: file.size,
-        type: isVideo ? 'video' : 'audio',
-        url: URL.createObjectURL(file),
-        file: file,
-        transcription: null,
-        summary: '',
-        detailedSummary: '',
-        mindmapData: null,
-        evaluation: '',
-        uploadTime: new Date().toISOString(),
-      };
-
-      // 添加文件到状态
-      addFile(fileObj);
-
-      // 如果是第一个文件，设为当前文件
-      if (files.length === 0) {
-        selectFile(fileObj);
-      }
-
-      message.success(`文件 "${file.name}" 上传成功`);
-      onSuccess?.();
-    } catch (error) {
-      console.error('File upload failed:', error);
-      message.error('文件上传失败');
-      onError?.(error);
-    }
-  }, [files, addFile, selectFile, message]);
+    },
+    [files, addFile, selectFile, message]
+  );
 
   /**
    * 处理文件删除
    * @param {Object} file - 要删除的文件对象
    */
-  const handleFileDelete = useCallback((file) => {
-    // 清理URL对象，避免内存泄漏
-    if (file.url && file.url.startsWith('blob:')) {
-      URL.revokeObjectURL(file.url);
-    }
+  const handleFileDelete = useCallback(
+    (file) => {
+      // 清理URL对象，避免内存泄漏
+      if (file.url && file.url.startsWith('blob:')) {
+        URL.revokeObjectURL(file.url);
+      }
 
-    // 删除文件
-    removeFile(file.name);
-    
-    message.success(`文件 "${file.name}" 已删除`);
-  }, [removeFile, message]);
+      // 删除文件
+      removeFile(file.name);
+
+      message.success(`文件 "${file.name}" 已删除`);
+    },
+    [removeFile, message]
+  );
 
   /**
    * 处理文件选择
    * @param {Object} file - 要选择的文件对象
    */
-  const handleFileSelect = useCallback((file) => {
-    selectFile(file);
-  }, [selectFile]);
+  const handleFileSelect = useCallback(
+    (file) => {
+      selectFile(file);
+    },
+    [selectFile]
+  );
 
   /**
    * 处理文件转录
    * @param {Object} file - 要转录的文件对象
    * @returns {Promise} 转录结果
    */
-  const handleTranscribe = useCallback(async (file) => {
-    // 检查是否已在转录中
-    if (isFileTranscribing(file.name)) {
-      message.warning('文件正在转录中，请稍候...');
-      return;
-    }
+  const handleTranscribe = useCallback(
+    async (file) => {
+      // 检查是否已在转录中
+      if (isFileTranscribing(file.name)) {
+        message.warning('文件正在转录中，请稍候...');
+        return;
+      }
 
-    // 添加到转录状态
-    addTranscribingFile(file.name);
+      // 添加到转录状态
+      addTranscribingFile(file.name);
 
-    try {
-      const result = await transcribeAPI.execute(
-        (options) => uploadAndTranscribe(file.file, options),
-        {
+      try {
+        const result = await transcribeAPI.execute((options) => uploadAndTranscribe(file.file, options), {
           loadingMessage: `正在转录 "${file.name}"...`,
           successMessage: `"${file.name}" 转录完成`,
           errorMessage: `转录失败`,
           onSuccess: (data) => {
             // 更新文件转录结果
             updateFile(file.name, { transcription: data.transcription });
-          }
-        }
-      );
+          },
+        });
 
-      return result;
+        return result;
+      } catch (error) {
+        console.error('Transcription failed:', error);
+        throw error;
+      } finally {
+        // 移除转录状态
+        removeTranscribingFile(file.name);
+      }
+    },
+    [isFileTranscribing, addTranscribingFile, removeTranscribingFile, updateFile, transcribeAPI, message]
+  );
 
+  /**
+   * 停止转录
+   */
+  const handleStopTranscription = useCallback(async () => {
+    try {
+      await stopTranscription();
+      message.success('转录已停止');
     } catch (error) {
-      console.error('Transcription failed:', error);
-      throw error;
-    } finally {
-      // 移除转录状态
-      removeTranscribingFile(file.name);
+      console.error('Stop transcription failed:', error);
+      message.error(`停止转录失败: ${error.message}`);
     }
-  }, [
-    isFileTranscribing,
-    addTranscribingFile,
-    removeTranscribingFile,
-    updateFile,
-    transcribeAPI,
-    message
-  ]);
+  }, [message]);
+
+  /**
+   * 转录下载的文件
+   * @param {Object} file - 下载的文件对象
+   */
+  const handleTranscribeDownloaded = useCallback(
+    async (file) => {
+      if (isFileTranscribing(file.name)) {
+        message.warning('文件正在转录中，请稍候...');
+        return;
+      }
+
+      addTranscribingFile(file.name);
+
+      try {
+        const result = await transcribeAPI.execute((options) => transcribeDownloadedFile(file.name, file.url.replace('http://localhost:8000/', ''), options), {
+          loadingMessage: `正在转录 "${file.name}"...`,
+          successMessage: `"${file.name}" 转录完成`,
+          errorMessage: `转录失败`,
+          onSuccess: (data) => {
+            updateFile(file.name, { transcription: data.transcription });
+          },
+        });
+        return result;
+      } catch (error) {
+        console.error('Transcribe downloaded file failed:', error);
+        throw error;
+      } finally {
+        removeTranscribingFile(file.name);
+      }
+    },
+    [isFileTranscribing, addTranscribingFile, removeTranscribingFile, updateFile, transcribeAPI, message]
+  );
 
   /**
    * 批量删除文件
    * @param {Array} fileNames - 要删除的文件名数组
    */
-  const handleBatchDelete = useCallback((fileNames) => {
-    fileNames.forEach(fileName => {
-      const file = files.find(f => f.name === fileName);
-      if (file) {
-        handleFileDelete(file);
-      }
-    });
-  }, [files, handleFileDelete]);
+  const handleBatchDelete = useCallback(
+    (fileNames) => {
+      fileNames.forEach((fileName) => {
+        const file = files.find((f) => f.name === fileName);
+        if (file) {
+          handleFileDelete(file);
+        }
+      });
+    },
+    [files, handleFileDelete]
+  );
 
   /**
    * 获取文件统计信息
@@ -177,10 +217,10 @@ export const useFileManager = () => {
    */
   const getFileStats = useCallback(() => {
     const totalFiles = files.length;
-    const transcribedFiles = files.filter(f => f.transcription).length;
+    const transcribedFiles = files.filter((f) => f.transcription).length;
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
-    const videoFiles = files.filter(f => f.type === 'video').length;
-    const audioFiles = files.filter(f => f.type === 'audio').length;
+    const videoFiles = files.filter((f) => f.type === 'video').length;
+    const audioFiles = files.filter((f) => f.type === 'audio').length;
 
     return {
       totalFiles,
@@ -188,7 +228,7 @@ export const useFileManager = () => {
       totalSize,
       videoFiles,
       audioFiles,
-      transcriptionProgress: totalFiles > 0 ? (transcribedFiles / totalFiles) * 100 : 0
+      transcriptionProgress: totalFiles > 0 ? (transcribedFiles / totalFiles) * 100 : 0,
     };
   }, [files]);
 
@@ -197,9 +237,12 @@ export const useFileManager = () => {
    * @param {Object} file - 文件对象
    * @returns {boolean} 是否可以转录
    */
-  const canTranscribe = useCallback((file) => {
-    return file && file.file && !file.transcription && !isFileTranscribing(file.name);
-  }, [isFileTranscribing]);
+  const canTranscribe = useCallback(
+    (file) => {
+      return file && file.file && !file.transcription && !isFileTranscribing(file.name);
+    },
+    [isFileTranscribing]
+  );
 
   return {
     // 基本操作
@@ -207,20 +250,24 @@ export const useFileManager = () => {
     handleFileDelete,
     handleFileSelect,
     handleTranscribe,
-    
+
+    // 转录控制
+    handleStopTranscription,
+    handleTranscribeDownloaded,
+
     // 批量操作
     handleBatchDelete,
-    
+
     // 工具方法
     getFileStats,
     canTranscribe,
-    
+
     // 状态查询
     isFileTranscribing,
-    
+
     // 当前状态
     files,
-    currentFile
+    currentFile,
   };
 };
 

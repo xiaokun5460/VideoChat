@@ -11,6 +11,7 @@ import SiderContent from './components/App/SiderContent';
 import MainContent from './components/App/MainContent';
 import { useRenderPerformance } from './utils/performance';
 import { useSmartPreload } from './components/LazyComponents';
+import './ModernApp.css';
 
 
 
@@ -27,7 +28,7 @@ const AppContent = React.memo(() => {
   useSmartPreload();
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="modern-app-layout">
       <SiderContent />
       <MainContent />
     </Layout>

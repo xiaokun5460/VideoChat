@@ -3,18 +3,19 @@
  * 负责显示文件管理器和应用设置
  */
 
-import React from 'react';
-import { Layout, Typography, Space, Button, Tooltip } from 'antd';
+import React, { useState } from 'react';
+import { Layout, Typography, Space, Button, Tooltip, Tabs } from 'antd';
 import {
   SettingOutlined,
   DownloadOutlined,
-  ExperimentOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  FileOutlined,
+  CloudDownloadOutlined
 } from '@ant-design/icons';
 import { useUIState, useFiles } from '../../hooks/useAppContext';
 import { useFileManager } from '../../hooks/useFileManager';
 import ModernFileManager from '../FileManager/ModernFileManager';
-import { ThemeToggle } from '../Theme';
+import { SuspenseDownloadManager } from '../LazyComponents';
 
 const { Sider } = Layout;
 const { Title } = Typography;
@@ -25,10 +26,7 @@ const { Title } = Typography;
 const SiderContent = () => {
   const {
     downloadTasksCount,
-    showStreamDemo,
-    openSettings,
-    openDownloadModal,
-    toggleStreamDemo
+    openSettings
   } = useUIState();
 
   const { files, selectedFiles, transcribingFiles } = useFiles();
@@ -37,8 +35,13 @@ const SiderContent = () => {
     handleFileUpload,
     handleFileDelete,
     handleFileSelect,
-    handleTranscribe
+    handleTranscribe,
+    handleStopTranscription,
+    handleTranscribeDownloaded
   } = useFileManager();
+
+  // 本地状态：当前活动的标签页
+  const [activeTab, setActiveTab] = useState('files');
 
   return (
     <Sider 
@@ -55,22 +58,11 @@ const SiderContent = () => {
         
         <div className="header-actions">
           <Space size="small">
-            <Tooltip title="流式响应演示">
+            <Tooltip title="切换到下载管理">
               <Button
-                type={showStreamDemo ? 'primary' : 'text'}
-                icon={<ExperimentOutlined />}
-                onClick={toggleStreamDemo}
-                size="small"
-              />
-            </Tooltip>
-
-            <ThemeToggle size="small" />
-
-            <Tooltip title="下载管理">
-              <Button
-                type="text"
+                type={activeTab === 'downloads' ? 'primary' : 'text'}
                 icon={<DownloadOutlined />}
-                onClick={openDownloadModal}
+                onClick={() => setActiveTab('downloads')}
                 size="small"
               >
                 {downloadTasksCount > 0 && (
@@ -100,14 +92,51 @@ const SiderContent = () => {
       </div>
 
       <div className="sider-content">
-        <ModernFileManager
-          files={files}
-          onFileUpload={handleFileUpload}
-          onFileDelete={handleFileDelete}
-          onFileSelect={handleFileSelect}
-          onTranscribe={handleTranscribe}
-          selectedFiles={selectedFiles}
-          transcribingFiles={transcribingFiles}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          size="small"
+          className="sider-tabs"
+          items={[
+            {
+              key: 'files',
+              label: (
+                <Space size="small">
+                  <FileOutlined />
+                  <span>文件管理</span>
+                  {files.length > 0 && (
+                    <span className="tab-badge">{files.length}</span>
+                  )}
+                </Space>
+              ),
+              children: (
+                <ModernFileManager
+                  files={files}
+                  onFileUpload={handleFileUpload}
+                  onFileDelete={handleFileDelete}
+                  onFileSelect={handleFileSelect}
+                  onTranscribe={handleTranscribe}
+                  onStopTranscription={handleStopTranscription}
+                  onTranscribeDownloaded={handleTranscribeDownloaded}
+                  selectedFiles={selectedFiles}
+                  transcribingFiles={transcribingFiles}
+                />
+              )
+            },
+            {
+              key: 'downloads',
+              label: (
+                <Space size="small">
+                  <CloudDownloadOutlined />
+                  <span>下载管理</span>
+                  {downloadTasksCount > 0 && (
+                    <span className="tab-badge">{downloadTasksCount}</span>
+                  )}
+                </Space>
+              ),
+              children: <SuspenseDownloadManager />
+            }
+          ]}
         />
       </div>
 
@@ -158,6 +187,43 @@ const SiderContent = () => {
           overflow: hidden;
           display: flex;
           flex-direction: column;
+        }
+
+        .sider-tabs {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .sider-tabs .ant-tabs-content-holder {
+          flex: 1;
+          overflow: hidden;
+        }
+
+        .sider-tabs .ant-tabs-tabpane {
+          height: 100%;
+          overflow: hidden;
+        }
+
+        .sider-tabs .ant-tabs-nav {
+          margin-bottom: 0;
+          padding: 0 16px;
+          background: #fafafa;
+          border-bottom: 1px solid #f0f0f0;
+        }
+
+        .tab-badge {
+          background: #1890ff;
+          color: white;
+          border-radius: 8px;
+          font-size: 10px;
+          min-width: 16px;
+          height: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          margin-left: 4px;
         }
       `}</style>
     </Sider>

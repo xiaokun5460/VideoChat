@@ -13,11 +13,11 @@ import { AppContext } from '../contexts/AppContext';
  */
 export const useAppContext = () => {
   const context = useContext(AppContext);
-  
+
   if (context === undefined) {
     throw new Error('useAppContext must be used within an AppProvider');
   }
-  
+
   return context;
 };
 
@@ -41,7 +41,7 @@ export const useFiles = () => {
     removeTranscribingFile,
     getFileByName,
     getSelectedFilesData,
-    isFileTranscribing
+    isFileTranscribing,
   } = useAppContext();
 
   return {
@@ -59,7 +59,7 @@ export const useFiles = () => {
     removeTranscribingFile,
     getFileByName,
     getSelectedFilesData,
-    isFileTranscribing
+    isFileTranscribing,
   };
 };
 
@@ -68,34 +68,17 @@ export const useFiles = () => {
  * @returns {Object} UI状态和操作方法
  */
 export const useUIState = () => {
-  const {
-    isDarkMode,
-    settingsVisible,
-    downloadModalVisible,
-    downloadTasksCount,
-    showStreamDemo,
-    toggleDarkMode,
-    openSettings,
-    closeSettings,
-    openDownloadModal,
-    closeDownloadModal,
-    toggleStreamDemo,
-    setDownloadTasksCount
-  } = useAppContext();
+  const { settingsVisible, downloadModalVisible, downloadTasksCount, openSettings, closeSettings, openDownloadModal, closeDownloadModal, setDownloadTasksCount } = useAppContext();
 
   return {
-    isDarkMode,
     settingsVisible,
     downloadModalVisible,
     downloadTasksCount,
-    showStreamDemo,
-    toggleDarkMode,
     openSettings,
     closeSettings,
     openDownloadModal,
     closeDownloadModal,
-    toggleStreamDemo,
-    setDownloadTasksCount
+    setDownloadTasksCount,
   };
 };
 

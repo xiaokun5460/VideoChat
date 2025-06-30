@@ -26,6 +26,7 @@ import {
   PictureOutlined
 } from '@ant-design/icons';
 import { useContentExport } from '../../hooks/useContentExport';
+import { generateMindmap, generateMindmapJson, downloadFile } from '../../services/api';
 import jsMind from 'jsmind';
 import 'jsmind/style/jsmind.css';
 
@@ -316,7 +317,7 @@ const ModernMindmapView = ({
           return;
         }
 
-        // 方案1：尝试dom-to-image
+        // 使用dom-to-image导出
         import('dom-to-image').then(domtoimage => {
           console.log('Trying dom-to-image export');
 
@@ -340,48 +341,14 @@ const ModernMindmapView = ({
             console.log('dom-to-image export successful');
           }).catch(error => {
             console.error('dom-to-image failed:', error);
-            // 回退到html2canvas
-            tryHtml2Canvas();
+            // 回退到服务端导出
+            console.log('Client export failed, using server export');
+            handleServerExport();
           });
         }).catch(error => {
           console.error('Failed to load dom-to-image:', error);
-          // 回退到html2canvas
-          tryHtml2Canvas();
+          handleServerExport();
         });
-
-        // 回退方案：html2canvas
-        const tryHtml2Canvas = () => {
-          import('html2canvas').then(html2canvas => {
-            console.log('Trying html2canvas export');
-
-            const jsmindInner = mindmapContainer.querySelector('.jsmind-inner') || mindmapContainer;
-
-            html2canvas.default(jsmindInner, {
-              backgroundColor: '#ffffff',
-              scale: 1,
-              useCORS: true,
-              allowTaint: true,
-              foreignObjectRendering: true,
-              logging: false,
-              width: jsmindInner.scrollWidth,
-              height: jsmindInner.scrollHeight
-            }).then(canvas => {
-              const link = document.createElement('a');
-              link.download = `${file.name}-mindmap.png`;
-              link.href = canvas.toDataURL('image/png', 0.9);
-              link.click();
-              console.log('html2canvas export successful');
-            }).catch(error => {
-              console.error('html2canvas failed:', error);
-              // 最后回退到服务端导出
-              console.log('All client export methods failed, using server export');
-              handleServerExport();
-            });
-          }).catch(error => {
-            console.error('Failed to load html2canvas:', error);
-            handleServerExport();
-          });
-        };
       }
     } catch (error) {
       console.error('Export failed:', error);
@@ -431,12 +398,7 @@ const ModernMindmapView = ({
       // 检查mindmapData是否是URL（图片路径）
       if (typeof file.mindmapData === 'string' && file.mindmapData.startsWith('/uploads/')) {
         // 如果是图片URL，直接下载
-        const response = await fetch(file.mindmapData);
-        if (!response.ok) {
-          throw new Error('Failed to fetch image');
-        }
-
-        const blob = await response.blob();
+        const blob = await downloadFile(file.mindmapData);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -452,26 +414,11 @@ const ModernMindmapView = ({
       // 如果是JSON数据，调用思维导图图片API生成高质量图片
       const text = file.transcription.map((item) => item.text).join('\n');
 
-      const response = await fetch('http://localhost:8000/api/mindmap-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text }),
-      });
-
-      if (!response.ok) {
-        throw new Error('生成思维导图图片失败');
-      }
-
-      const data = await response.json();
+      const data = await generateMindmap(text);
 
       if (data.image_url) {
         // 下载生成的图片
-        const imageResponse = await fetch(`http://localhost:8000${data.image_url}`);
-        if (!imageResponse.ok) {
-          throw new Error('Failed to fetch generated image');
-        }
-
-        const blob = await imageResponse.blob();
+        const blob = await downloadFile(data.image_url);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -500,17 +447,7 @@ const ModernMindmapView = ({
       const text = file.transcription.map((item) => item.text).join('\n');
 
       // 调用JSON格式的思维导图API
-      const response = await fetch('http://localhost:8000/api/mindmap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: text, stream: false }),
-      });
-
-      if (!response.ok) {
-        throw new Error('生成JSON格式思维导图失败');
-      }
-
-      const data = await response.json();
+      const data = await generateMindmapJson(text);
 
       // 更新文件对象中的思维导图数据为JSON格式
       file.mindmapData = data.mindmap;

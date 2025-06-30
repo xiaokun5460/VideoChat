@@ -28,6 +28,7 @@ import {
 
 // 导入流式API Hook
 import { useStreamAPI } from '../../hooks/useAPI';
+import { useClipboard } from '../../hooks/useClipboard';
 import { chatWithAI, extractTranscriptionText } from '../../services/api';
 
 const { TextArea } = Input;
@@ -48,6 +49,9 @@ const ModernChatInterface = ({
   // 流式API Hook
   const chatStreamAPI = useStreamAPI();
   const [currentStreamingMessageId, setCurrentStreamingMessageId] = useState(null);
+
+  // 剪贴板Hook
+  const { copyToClipboard } = useClipboard();
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -178,15 +182,14 @@ const ModernChatInterface = ({
   };
 
   // 复制消息
-  const handleCopyMessage = (content) => {
-    navigator.clipboard.writeText(content);
+  const handleCopyMessage = async (content) => {
+    await copyToClipboard(content);
   };
 
   // 快速问题 - 展示持续会话能力
   const quickQuestions = [
     '请总结这段内容的主要观点',
     '有哪些关键信息？',
-    '请提取重要的时间点',
     '有什么值得注意的地方？',
     '能详细解释一下吗？',
     '我还想了解更多'
@@ -225,41 +228,12 @@ const ModernChatInterface = ({
 
   return (
     <div className={`modern-chat-interface ${className}`}>
-      <style>{`
-        .streaming-cursor {
-          animation: blink 1s infinite;
-          color: #1890ff;
-          font-weight: bold;
-        }
-
-        @keyframes blink {
-          0%, 50% { opacity: 1; }
-          51%, 100% { opacity: 0; }
-        }
-
-        .chat-bubble.streaming {
-          border-left: 3px solid #1890ff;
-        }
-
-        .stop-btn {
-          background: #ff4d4f;
-          border-color: #ff4d4f;
-        }
-
-        .stop-btn:hover {
-          background: #ff7875;
-          border-color: #ff7875;
-        }
-      `}</style>
       {/* 聊天头部 */}
       <div className="chat-header">
         <div className="header-left">
-          <Avatar 
-            icon={<RobotOutlined />} 
+          <Avatar
+            icon={<RobotOutlined />}
             className="ai-avatar"
-            style={{ 
-              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' 
-            }}
           />
           <div className="header-info">
             <Text className="ai-name">AI助手</Text>
@@ -328,13 +302,8 @@ const ModernChatInterface = ({
                   <div className="message-avatar-left">
                     <Avatar
                       icon={<RobotOutlined />}
-                      className="ai-avatar"
+                      className="ai-avatar with-border"
                       size={36}
-                      style={{
-                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                        border: '2px solid rgba(255, 255, 255, 0.8)',
-                        boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
-                      }}
                     />
                   </div>
                 )}
@@ -380,11 +349,6 @@ const ModernChatInterface = ({
                       icon={<UserOutlined />}
                       className="user-avatar"
                       size={36}
-                      style={{
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        border: '2px solid rgba(255, 255, 255, 0.8)',
-                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                      }}
                     />
                   </div>
                 )}
@@ -398,9 +362,6 @@ const ModernChatInterface = ({
                   <Avatar
                     icon={<RobotOutlined />}
                     className="ai-avatar"
-                    style={{
-                      background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)'
-                    }}
                   />
                 </div>
                 <div className="message-content">

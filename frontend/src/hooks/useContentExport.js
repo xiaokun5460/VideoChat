@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { App } from 'antd';
-import { exportContentToImage, formatAPIError } from '../services/api';
+import { exportContentToImage, exportTranscription, exportSummary, downloadFile as downloadFileAPI, formatAPIError } from '../services/api';
 
 /**
  * 内容导出Hook
@@ -124,12 +124,7 @@ export function useContentExport() {
   const downloadImage = async (imageUrl, filename) => {
     try {
       // 获取图片数据
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error('图片下载失败');
-      }
-
-      const blob = await response.blob();
+      const blob = await downloadFileAPI(imageUrl);
 
       // 创建下载链接
       const url = URL.createObjectURL(blob);
@@ -172,6 +167,164 @@ export function useContentExport() {
   };
 
   /**
+   * 导出转录结果
+   * @param {string} format - 导出格式 (vtt/srt/txt)
+   * @param {Array} transcription - 转录数据
+   * @param {string} filename - 文件名
+   * @param {Object} options - 导出选项
+   * @returns {Promise<boolean>} 导出是否成功
+   */
+  const exportTranscriptionFile = useCallback(
+    async (format, transcription, filename, options = {}) => {
+      const { showMessages = true, onSuccess, onError } = options;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!transcription || !Array.isArray(transcription) || transcription.length === 0) {
+          throw new Error('转录数据不能为空');
+        }
+
+        if (!['vtt', 'srt', 'txt'].includes(format)) {
+          throw new Error('不支持的导出格式');
+        }
+
+        if (showMessages) {
+          message.loading(`正在导出${format.toUpperCase()}文件...`, 0);
+        }
+
+        const response = await exportTranscription(format, transcription);
+
+        if (!response || !response.download_url) {
+          throw new Error('文件生成失败');
+        }
+
+        // 下载文件
+        await downloadFile(response.download_url, response.filename || `${filename}.${format}`);
+
+        if (showMessages) {
+          message.destroy();
+          message.success('转录文件导出成功');
+        }
+
+        if (onSuccess) {
+          onSuccess(response);
+        }
+
+        return true;
+      } catch (err) {
+        console.error('转录导出失败:', err);
+        const errorInfo = formatAPIError(err);
+        setError(errorInfo);
+
+        if (showMessages) {
+          message.destroy();
+          message.error(errorInfo.message || '转录导出失败');
+        }
+
+        if (onError) {
+          onError(errorInfo);
+        }
+
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [message]
+  );
+
+  /**
+   * 导出总结内容
+   * @param {string} summaryText - 总结文本
+   * @param {string} filename - 文件名
+   * @param {Object} options - 导出选项
+   * @returns {Promise<boolean>} 导出是否成功
+   */
+  const exportSummaryFile = useCallback(
+    async (summaryText, filename, options = {}) => {
+      const { showMessages = true, onSuccess, onError } = options;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (!summaryText || !summaryText.trim()) {
+          throw new Error('总结内容不能为空');
+        }
+
+        if (showMessages) {
+          message.loading('正在导出总结文件...', 0);
+        }
+
+        const response = await exportSummary(summaryText.trim());
+
+        if (!response || !response.download_url) {
+          throw new Error('文件生成失败');
+        }
+
+        // 下载文件
+        await downloadFile(response.download_url, response.filename || `${filename}_summary.txt`);
+
+        if (showMessages) {
+          message.destroy();
+          message.success('总结文件导出成功');
+        }
+
+        if (onSuccess) {
+          onSuccess(response);
+        }
+
+        return true;
+      } catch (err) {
+        console.error('总结导出失败:', err);
+        const errorInfo = formatAPIError(err);
+        setError(errorInfo);
+
+        if (showMessages) {
+          message.destroy();
+          message.error(errorInfo.message || '总结导出失败');
+        }
+
+        if (onError) {
+          onError(errorInfo);
+        }
+
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [message]
+  );
+
+  /**
+   * 下载文件
+   * @param {string} fileUrl - 文件URL
+   * @param {string} filename - 文件名
+   */
+  const downloadFile = async (fileUrl, filename) => {
+    try {
+      const blob = await downloadFileAPI(fileUrl);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('文件下载失败:', err);
+      throw new Error('文件下载失败');
+    }
+  };
+
+  /**
    * 重置状态
    */
   const reset = useCallback(() => {
@@ -186,6 +339,8 @@ export function useContentExport() {
 
     // 方法
     exportToImage,
+    exportTranscriptionFile,
+    exportSummaryFile,
     reset,
   };
 }

@@ -7,7 +7,7 @@ import { useCallback } from 'react';
 import { App } from 'antd';
 import { useFiles } from './useAppContext';
 import { useAPICall, useStreamAPI } from './useAPI';
-import { generateSummary, generateDetailedSummary, chatWithAI, generateTeachingEvaluation, extractTranscriptionText } from '../services/api';
+import { generateSummary, generateDetailedSummary, chatWithAI, generateTeachingEvaluation, generateMindmap as generateMindmapAPI, extractTranscriptionText } from '../services/api';
 
 /**
  * AI功能Hook
@@ -120,21 +120,8 @@ export const useAIFeatures = () => {
       try {
         message.loading('正在生成思维导图...', 0);
 
-        const response = await fetch('http://localhost:8000/api/mindmap-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: file.transcription.map((item) => item.text).join(' '),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('生成思维导图失败');
-        }
-
-        const data = await response.json();
+        const text = file.transcription.map((item) => item.text).join(' ');
+        const data = await generateMindmapAPI(text);
 
         // 更新文件思维导图 - 使用图片URL
         updateFile(file.name, { mindmapData: data.image_url });

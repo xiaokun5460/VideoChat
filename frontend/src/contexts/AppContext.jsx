@@ -4,7 +4,6 @@
  */
 
 import React, { createContext, useState, useCallback } from 'react';
-import { useTheme } from '../hooks/useTheme';
 
 // 创建Context
 const AppContext = createContext();
@@ -21,14 +20,12 @@ const AppProvider = ({ children }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [transcribingFiles, setTranscribingFiles] = useState(new Set());
   
-  // 主题管理
-  const themeHook = useTheme();
+
 
   // UI状态
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [downloadModalVisible, setDownloadModalVisible] = useState(false);
   const [downloadTasksCount, setDownloadTasksCount] = useState(0);
-  const [showStreamDemo, setShowStreamDemo] = useState(false);
 
   // 文件操作方法
   const addFile = useCallback((file) => {
@@ -108,10 +105,6 @@ const AppProvider = ({ children }) => {
     setDownloadModalVisible(false);
   }, []);
 
-  const toggleStreamDemo = useCallback(() => {
-    setShowStreamDemo(prev => !prev);
-  }, []);
-
   // 状态选择器
   const getFileByName = useCallback((fileName) => {
     return files.find(f => f.name === fileName);
@@ -135,10 +128,8 @@ const AppProvider = ({ children }) => {
     settingsVisible,
     downloadModalVisible,
     downloadTasksCount,
-    showStreamDemo,
 
-    // 主题管理 (从useTheme Hook)
-    ...themeHook,
+
 
     // 文件操作方法
     addFile,
@@ -157,7 +148,6 @@ const AppProvider = ({ children }) => {
     closeSettings,
     openDownloadModal,
     closeDownloadModal,
-    toggleStreamDemo,
     setDownloadTasksCount,
 
     // 状态选择器

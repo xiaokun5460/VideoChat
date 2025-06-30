@@ -4,18 +4,19 @@
  */
 
 import { useState, useMemo } from 'react';
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Input, 
-  Space, 
-  Tag, 
-  Tooltip, 
+import {
+  Card,
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Tooltip,
   Typography,
   Divider,
   Progress,
-  Empty
+  Empty,
+  Dropdown
 } from 'antd';
 import {
   SearchOutlined,
@@ -23,8 +24,10 @@ import {
   CopyOutlined,
   PlayCircleOutlined,
   SoundOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  FileTextOutlined
 } from '@ant-design/icons';
+import { useContentExport } from '../../hooks/useContentExport';
 import './ModernTranscriptionView.css';
 
 const { Text, Paragraph } = Typography;
@@ -35,9 +38,11 @@ const ModernTranscriptionView = ({
   isLoading = false,
   onTimeSeek,
   currentTime = 0,
-  className = ''
+  className = '',
+  filename = 'transcription'
 }) => {
   const [searchText, setSearchText] = useState('');
+  const { loading: exportLoading, exportTranscriptionFile } = useContentExport();
 
   // 格式化时间
   const formatTime = (seconds) => {
@@ -80,19 +85,35 @@ const ModernTranscriptionView = ({
   };
 
   // 导出转录结果
-  const exportTranscription = () => {
-    const content = filteredData.map(item =>
-      `[${formatTime(item.start)} - ${formatTime(item.end)}] ${item.text}`
-    ).join('\n');
-    
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'transcription.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleExport = async (format) => {
+    if (!transcriptionData || transcriptionData.length === 0) {
+      return;
+    }
+
+    await exportTranscriptionFile(format, transcriptionData, filename);
   };
+
+  // 导出菜单项
+  const exportMenuItems = [
+    {
+      key: 'vtt',
+      label: 'WebVTT格式',
+      icon: <FileTextOutlined />,
+      onClick: () => handleExport('vtt')
+    },
+    {
+      key: 'srt',
+      label: 'SRT字幕格式',
+      icon: <FileTextOutlined />,
+      onClick: () => handleExport('srt')
+    },
+    {
+      key: 'txt',
+      label: '纯文本格式',
+      icon: <FileTextOutlined />,
+      onClick: () => handleExport('txt')
+    }
+  ];
 
   // 表格列定义
   const columns = [
@@ -211,13 +232,19 @@ const ModernTranscriptionView = ({
               />
             </Tooltip>
             
-            <Tooltip title="导出转录结果">
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={exportTranscription}
-                className="action-btn"
-              />
-            </Tooltip>
+            <Dropdown
+              menu={{ items: exportMenuItems }}
+              placement="bottomRight"
+              disabled={!transcriptionData || transcriptionData.length === 0}
+            >
+              <Tooltip title="导出转录结果">
+                <Button
+                  icon={<DownloadOutlined />}
+                  loading={exportLoading}
+                  className="action-btn"
+                />
+              </Tooltip>
+            </Dropdown>
           </Space>
         </div>
       </div>

@@ -159,7 +159,7 @@ const ModernAIFeatures = ({
 
   if (!currentFile) {
     return (
-      <Card className={`modern-ai-features empty ${className}`} variant="outlined">
+      <Card className={`modern-ai-features glass-card-large empty ${className}`} variant="outlined">
         <Empty
           image={<RobotOutlined className="empty-icon" />}
           description="请选择文件"
@@ -173,7 +173,7 @@ const ModernAIFeatures = ({
 
   if (!hasTranscription) {
     return (
-      <Card className={`modern-ai-features no-transcription ${className}`} variant="outlined">
+      <Card className={`modern-ai-features glass-card-large no-transcription ${className}`} variant="outlined">
         <div className="no-transcription-content">
           <div className="no-transcription-icon">
             <ThunderboltOutlined />
@@ -194,7 +194,7 @@ const ModernAIFeatures = ({
   }
 
   return (
-    <Card className={`modern-ai-features ${className}`} variant="outlined">
+    <Card className={`modern-ai-features glass-card-large ${className}`} variant="outlined">
       {/* AI功能头部 */}
       <div className="ai-features-header">
         <div className="header-left">

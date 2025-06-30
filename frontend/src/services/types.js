@@ -81,6 +81,77 @@
  */
 
 /**
+ * @typedef {Object} DownloadRequest
+ * @property {string} url - 下载URL
+ * @property {string} [filename] - 自定义文件名
+ */
+
+/**
+ * @typedef {Object} DownloadResponse
+ * @property {string} task_id - 下载任务ID
+ * @property {string} message - 响应消息
+ * @property {string} url - 下载URL
+ */
+
+/**
+ * @typedef {Object} DownloadProgress
+ * @property {string} task_id - 任务ID
+ * @property {string} status - 下载状态：'pending' | 'downloading' | 'completed' | 'failed' | 'cancelled'
+ * @property {number} progress - 下载进度（0-100）
+ * @property {string} filename - 文件名
+ * @property {string} [speed] - 下载速度
+ * @property {string} [eta] - 预计剩余时间
+ * @property {string} [error_message] - 错误消息
+ */
+
+/**
+ * @typedef {Object} TranscribeDownloadedRequest
+ * @property {string} filename - 文件名
+ * @property {string} file_path - 文件路径
+ */
+
+/**
+ * @typedef {Object} TranscriptionProgress
+ * @property {string} task_id - 转录任务ID
+ * @property {string} status - 转录状态：'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'
+ * @property {number} progress - 转录进度（0-100）
+ * @property {string} filename - 文件名
+ * @property {string} [current_stage] - 当前处理阶段
+ * @property {string} [eta] - 预计剩余时间
+ * @property {string} [error_message] - 错误消息
+ * @property {TranscriptionItem[]} [partial_result] - 部分转录结果
+ */
+
+/**
+ * @typedef {Object} UploadProgress
+ * @property {number} loaded - 已上传字节数
+ * @property {number} total - 总字节数
+ * @property {number} percentage - 上传进度百分比（0-100）
+ * @property {string} [speed] - 上传速度
+ * @property {string} [eta] - 预计剩余时间
+ */
+
+/**
+ * @typedef {Object} ExportRequest
+ * @property {string} format - 导出格式：'vtt' | 'srt' | 'txt'
+ * @property {TranscriptionItem[]} data - 转录数据
+ */
+
+/**
+ * @typedef {Object} ExportResponse
+ * @property {string} download_url - 下载链接
+ * @property {string} filename - 文件名
+ * @property {string} format - 导出格式
+ */
+
+/**
+ * @typedef {Object} ContentExportResponse
+ * @property {string} image_url - 图片URL
+ * @property {string} [filename] - 文件名
+ * @property {Object} [metadata] - 元数据
+ */
+
+/**
  * @typedef {Object} APIErrorInfo
  * @property {string} message - 错误消息
  * @property {number} status - HTTP状态码
@@ -123,12 +194,30 @@
  * API端点常量
  */
 export const API_ENDPOINTS = {
+  // 文件上传和转录
   UPLOAD: '/api/upload',
+  UPLOAD_PROGRESS: '/api/upload-progress',
+  STOP_TRANSCRIBE: '/api/stop-transcribe',
+  TRANSCRIBE_DOWNLOADED: '/api/transcribe-downloaded',
+  TRANSCRIPTION_PROGRESS: '/api/transcription-progress',
+
+  // AI功能
   SUMMARY: '/api/summary',
   DETAILED_SUMMARY: '/api/detailed-summary',
   MINDMAP: '/api/mindmap-image',
+  MINDMAP_JSON: '/api/mindmap',
   CHAT: '/api/chat',
-  EVALUATION: '/api/ai/evaluate-teaching'
+  EVALUATION: '/api/ai/evaluate-teaching',
+
+  // 下载管理
+  DOWNLOAD_VIDEO: '/api/download-video',
+  DOWNLOAD_PROGRESS: '/api/download-progress',
+  CANCEL_DOWNLOAD: '/api/cancel-download',
+
+  // 导出功能
+  EXPORT: '/api/export',
+  EXPORT_SUMMARY: '/api/export/summary',
+  EXPORT_CONTENT_IMAGE: '/api/export-content-image',
 };
 
 /**
@@ -139,7 +228,7 @@ export const HTTP_METHODS = {
   POST: 'POST',
   PUT: 'PUT',
   DELETE: 'DELETE',
-  PATCH: 'PATCH'
+  PATCH: 'PATCH',
 };
 
 /**
@@ -149,7 +238,7 @@ export const DEFAULT_CONFIG = {
   TIMEOUT: 30000,
   UPLOAD_TIMEOUT: 300000,
   MAX_RETRIES: 3,
-  RETRY_DELAY: 1000
+  RETRY_DELAY: 1000,
 };
 
 /**
@@ -160,7 +249,7 @@ export const ERROR_TYPES = {
   TIMEOUT_ERROR: 'TIMEOUT_ERROR',
   ABORT_ERROR: 'ABORT_ERROR',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
-  SERVER_ERROR: 'SERVER_ERROR'
+  SERVER_ERROR: 'SERVER_ERROR',
 };
 
 /**
@@ -175,14 +264,16 @@ export const HTTP_STATUS = {
   NOT_FOUND: 404,
   INTERNAL_SERVER_ERROR: 500,
   BAD_GATEWAY: 502,
-  SERVICE_UNAVAILABLE: 503
+  SERVICE_UNAVAILABLE: 503,
 };
 
 // 导出类型定义（用于IDE类型提示）
-export default {
+const TypesExport = {
   API_ENDPOINTS,
   HTTP_METHODS,
   DEFAULT_CONFIG,
   ERROR_TYPES,
-  HTTP_STATUS
+  HTTP_STATUS,
 };
+
+export default TypesExport;

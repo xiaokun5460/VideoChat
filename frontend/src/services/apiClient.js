@@ -62,7 +62,7 @@ class StreamProcessor {
  * 统一处理HTTP请求、错误处理、超时控制等
  */
 export class APIClient {
-  constructor(baseURL = 'http://localhost:8000', defaultOptions = {}) {
+  constructor(baseURL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000', defaultOptions = {}) {
     this.baseURL = baseURL;
     this.defaultOptions = {
       timeout: 30000,

@@ -13,9 +13,9 @@
 
 /* 📤 上传卡片 */
 .upload-card {
-  background: rgba(255, 255, 255, 0.8) !important;
+  background: var(--color-bg-container) !important;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 16px !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -55,12 +55,12 @@
 .upload-title {
   font-size: 18px;
   font-weight: 600;
-  color: var(--color-neutral-800);
+  color: var(--color-text-base);
   margin: 0 0 8px 0;
 }
 
 .upload-description {
-  color: var(--color-neutral-500);
+  color: var(--color-text-secondary);
   margin: 0 0 20px 0;
   font-size: 14px;
 }
@@ -119,9 +119,9 @@
 
 /* 📁 文件项 */
 .file-item {
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: var(--color-bg-container) !important;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  border: 1px solid var(--color-border) !important;
   border-radius: 12px !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
   transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -245,8 +245,7 @@
   width: 32px !important;
   height: 32px !important;
   border-radius: 8px !important;
-  background: rgba(255, 255, 255, 0.5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  /* 使用玻璃态按钮样式 */
   color: var(--color-neutral-600) !important;
   transition: all 0.2s ease;
 }
@@ -316,28 +315,28 @@
   .upload-content {
     padding: 24px 16px;
   }
-  
+
   .upload-icon {
     font-size: 36px;
   }
-  
+
   .upload-title {
     font-size: 16px;
   }
-  
+
   .file-content {
     padding: 12px;
   }
-  
+
   .file-icon-wrapper {
     width: 40px;
     height: 40px;
   }
-  
+
   .file-icon {
     font-size: 20px;
   }
-  
+
   .batch-content {
     flex-direction: column;
     gap: 12px;

@@ -34,7 +34,7 @@
   position: relative;
   width: 100%;
   height: 300px;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: var(--color-bg-spotlight);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -56,8 +56,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.1); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 .audio-waves {
@@ -80,8 +87,13 @@
 }
 
 @keyframes wave-animation {
-  0%, 100% { height: 20px; }
-  50% { height: 60px; }
+  0%,
+  100% {
+    height: 20px;
+  }
+  50% {
+    height: 60px;
+  }
 }
 
 /* 🎮 控制栏覆盖层 */
@@ -263,71 +275,78 @@
   .controls-overlay {
     padding: 12px;
   }
-  
+
   .controls-container {
     padding: 12px;
   }
-  
+
   .controls-section {
     flex-direction: column;
     gap: 12px;
   }
-  
+
   .left-controls,
   .right-controls {
     width: 100%;
     justify-content: center;
   }
-  
+
   .volume-control {
     min-width: 100px;
   }
-  
+
   .control-btn {
     width: 36px !important;
     height: 36px !important;
   }
-  
+
   .play-btn {
     width: 44px !important;
     height: 44px !important;
   }
-  
+
   .audio-container {
     height: 200px;
   }
-  
+
   .audio-icon {
     font-size: 36px;
   }
-  
+
   .audio-waves {
     height: 40px;
   }
-  
+
   .wave {
     width: 3px;
     height: 15px;
   }
-  
+
   .wave.playing {
     animation: wave-animation-mobile 1s ease-in-out infinite;
   }
 }
 
 @keyframes wave-animation-mobile {
-  0%, 100% { height: 15px; }
-  50% { height: 40px; }
+  0%,
+  100% {
+    height: 15px;
+  }
+  50% {
+    height: 40px;
+  }
 }
 
 /* 🌙 暗色主题适配 */
-.dark-theme .controls-container {
-  background: rgba(15, 23, 42, 0.8) !important;
-  border-color: rgba(255, 255, 255, 0.1);
+.controls-container {
+  /* background: var(--color-bg-container) !important;
+  border-color: var(--color-border); */
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
-.dark-theme .audio-container {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+.audio-container {
+  background: var(--color-bg-spotlight);
+  transition: background-color 0.3s ease;
 }
 
 /* 🎭 动画增强 */
@@ -341,7 +360,7 @@
 
 /* 🔄 加载状态 */
 .media-element:not([src]) {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: var(--color-bg-layout);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,7 +369,7 @@
 
 .media-element:not([src])::before {
   content: '等待加载媒体文件...';
-  color: var(--color-neutral-500);
+  color: var(--color-text-secondary);
   font-size: 16px;
   font-weight: 500;
 }

@@ -5,12 +5,7 @@
 
 /* 🤖 AI功能容器 */
 .modern-ai-features {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  border-radius: 20px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05), 0 8px 32px 0 rgba(31, 38, 135, 0.15) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* 使用玻璃态效果 - 在组件中添加 glass-card-large 类 */
   position: relative;
   overflow: hidden;
 }
@@ -31,18 +26,62 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 12px 40px 0 rgba(31, 38, 135, 0.2) !important;
 }
 
-.dark-theme .modern-ai-features {
-  background: rgba(15, 23, 42, 0.85) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2), 0 8px 32px 0 rgba(99, 102, 241, 0.1) !important;
+/* 暗色主题样式已通过CSS变量自动适配 */
+
+/* 🎬 聊天界面样式 */
+/* 流式文本光标动画 */
+.streaming-cursor {
+  animation: blink 1s infinite;
+  color: var(--ant-color-primary);
+  font-weight: 700;
 }
 
-.dark-theme .modern-ai-features::before {
-  background: linear-gradient(90deg, transparent 0%, rgba(99, 102, 241, 0.4) 20%, rgba(168, 85, 247, 0.4) 80%, transparent 100%);
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
 }
 
-.dark-theme .modern-ai-features:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3), 0 12px 40px 0 rgba(99, 102, 241, 0.15) !important;
+/* 流式聊天气泡样式 */
+.chat-bubble.streaming {
+  border-left: 3px solid var(--ant-color-primary);
+}
+
+/* 停止按钮样式 */
+.stop-btn {
+  background: var(--ant-color-error);
+  border-color: var(--ant-color-error);
+}
+
+.stop-btn:hover {
+  background: var(--ant-color-error-hover);
+  border-color: var(--ant-color-error-hover);
+}
+
+/* AI头像样式 - 使用更高特异性选择器 */
+.modern-chat-interface .ai-avatar,
+.modern-ai-features .ai-avatar {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.modern-chat-interface .ai-avatar.with-border,
+.modern-ai-features .ai-avatar.with-border {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* 用户头像样式 - 使用更高特异性选择器 */
+.modern-chat-interface .user-avatar,
+.modern-ai-features .user-avatar {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 /* 🎯 AI功能头部 */
@@ -98,29 +137,29 @@
   gap: 4px;
 }
 
-.ai-title {
-  margin: 0 !important;
+.modern-ai-features .ai-title {
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: var(--color-neutral-800);
+  color: var(--ant-color-text);
 }
 
-.ai-description {
+.modern-ai-features .ai-description {
   font-size: 14px;
-  color: var(--color-neutral-500) !important;
+  color: var(--ant-color-text-secondary);
 }
 
 .quick-action-btn {
   background: rgba(99, 102, 241, 0.1) !important;
   border-color: rgba(99, 102, 241, 0.3) !important;
-  color: var(--color-primary-600) !important;
+  color: var(--ant-color-primary) !important;
   border-radius: 8px !important;
   font-weight: 500;
 }
 
 .quick-action-btn:hover {
   background: rgba(99, 102, 241, 0.2) !important;
-  border-color: var(--color-primary-500) !important;
+  border-color: var(--ant-color-primary) !important;
   transform: translateY(-1px);
 }
 
@@ -129,10 +168,7 @@
   padding: 14px 24px !important;
   border-radius: 12px !important;
   margin-right: 10px !important;
-  background: rgba(255, 255, 255, 0.6) !important;
-  border: 1px solid rgba(255, 255, 255, 0.4) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  backdrop-filter: blur(8px);
+  /* 使用玻璃态按钮样式 */
   position: relative;
   overflow: hidden;
 }
@@ -163,7 +199,7 @@
 
 .ai-tabs .ant-tabs-tab-active {
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-  border-color: var(--color-primary-500) !important;
+  border-color: var(--ant-color-primary) !important;
   color: white !important;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3), 0 2px 6px rgba(99, 102, 241, 0.2);
   transform: translateY(-1px);
@@ -179,7 +215,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 500;
-  color: var(--color-neutral-700);
+  color: var(--ant-color-text);
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
@@ -253,12 +289,8 @@
 .ai-features-content {
   position: relative;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 16px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* 使用玻璃态卡片样式 */
   margin-top: 16px;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .ai-features-content::before {
@@ -273,14 +305,7 @@
   pointer-events: none;
 }
 
-.dark-theme .ai-features-content {
-  background: rgba(15, 23, 42, 0.4);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.dark-theme .ai-features-content::before {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(124, 58, 237, 0.08) 100%);
-}
+/* 内容区域样式已通过CSS变量自动适配 */
 
 /* 📄 文件信息底部 */
 .file-info-footer {
@@ -295,7 +320,7 @@
 }
 
 .divider {
-  color: var(--color-neutral-400);
+  color: var(--ant-color-text-tertiary);
   margin: 0 8px;
 }
 
@@ -303,7 +328,7 @@
 .transcription-length,
 .file-duration {
   font-size: 12px;
-  color: var(--color-neutral-500) !important;
+  color: var(--ant-color-text-secondary) !important;
 }
 
 /* 🌟 空状态 */
@@ -323,25 +348,25 @@
 
 .empty-icon {
   font-size: 64px;
-  color: var(--color-primary-500);
+  color: var(--ant-color-primary);
   margin-bottom: 16px;
   animation: float 3s ease-in-out infinite;
 }
 
 .no-transcription-icon {
   font-size: 64px;
-  color: var(--color-warning-500);
+  color: var(--ant-color-warning);
   margin-bottom: 16px;
   animation: pulse 2s ease-in-out infinite;
 }
 
 .no-transcription-title {
-  color: var(--color-neutral-800) !important;
+  color: var(--ant-color-text) !important;
   margin-bottom: 8px !important;
 }
 
 .no-transcription-description {
-  color: var(--color-neutral-500) !important;
+  color: var(--ant-color-text-secondary) !important;
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -442,23 +467,7 @@
   }
 }
 
-/* 🌙 暗色主题适配 */
-.dark-theme .ai-title {
-  color: var(--color-neutral-200);
-}
-
-.dark-theme .ai-tabs .ant-tabs-tab {
-  background: rgba(15, 23, 42, 0.6) !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  backdrop-filter: blur(8px);
-}
-
-.dark-theme .ai-tabs .ant-tabs-tab:hover {
-  background: rgba(139, 92, 246, 0.25) !important;
-  border-color: rgba(139, 92, 246, 0.5) !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-}
+/* 🌙 暗色主题适配 - 使用CSS变量自动适配 */
 
 .dark-theme .ai-tabs .ant-tabs-tab-active {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important;
@@ -561,37 +570,37 @@
   font-style: italic;
 }
 
-/* 暗色主题下的Markdown样式 */
-.dark-theme .summary-content h1,
-.dark-theme .summary-content h2,
-.dark-theme .summary-content h3,
-.dark-theme .summary-content h4,
-.dark-theme .summary-content h5,
-.dark-theme .summary-content h6 {
-  color: var(--color-neutral-200);
+/* Markdown样式使用CSS变量自动适配主题 */
+.summary-content h1,
+.summary-content h2,
+.summary-content h3,
+.summary-content h4,
+.summary-content h5,
+.summary-content h6 {
+  color: var(--color-text-base);
 }
 
-.dark-theme .summary-content h1 {
-  border-bottom-color: var(--color-primary-700);
+.summary-content h1 {
+  border-bottom-color: var(--color-border);
 }
 
-.dark-theme .summary-content p,
-.dark-theme .summary-content li {
-  color: var(--color-neutral-300);
+.summary-content p,
+.summary-content li {
+  color: var(--color-text-secondary);
 }
 
-.dark-theme .summary-content strong {
-  color: var(--color-neutral-100);
+.summary-content strong {
+  color: var(--color-text-base);
 }
 
-.dark-theme .summary-content code {
-  background: rgba(139, 92, 246, 0.2);
-  color: var(--color-primary-300);
+.summary-content code {
+  background: var(--color-fill);
+  color: var(--color-primary-600);
 }
 
-.dark-theme .summary-content blockquote {
-  border-left-color: var(--color-primary-600);
-  background: rgba(139, 92, 246, 0.1);
+.summary-content blockquote {
+  border-left-color: var(--color-primary-500);
+  background: var(--color-fill);
 }
 
 .dark-theme .summary-content blockquote p {
@@ -600,12 +609,9 @@
 
 /* 📝 总结空状态样式 */
 .summary-card.empty {
+  /* 使用玻璃态卡片样式 */
   text-align: center;
   padding: 40px 20px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 16px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .empty-summary-icon {
@@ -743,12 +749,8 @@
 }
 
 .evaluation-card {
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 16px;
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  /* 使用玻璃态卡片样式 */
   margin-bottom: 16px;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .evaluation-card:hover {
@@ -1392,31 +1394,16 @@
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.1) 100%);
 }
 
-.dark-theme .ai-bubble {
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(51, 65, 85, 0.9) 100%);
-  border-color: rgba(139, 92, 246, 0.3);
+/* 聊天气泡样式使用CSS变量自动适配主题 */
+.ai-bubble {
+  background: var(--color-bg-container);
+  border-color: var(--color-border);
 }
 
-.dark-theme .ai-bubble::before {
-  border-right-color: rgba(51, 65, 85, 0.9);
+.user-bubble {
+  background: var(--gradient-primary);
 }
 
-.dark-theme .ai-bubble::after {
-  border-right-color: rgba(30, 41, 59, 0.95);
-}
-
-.dark-theme .user-bubble {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-}
-
-.dark-theme .user-bubble::before {
-  border-left-color: #7c3aed;
-}
-
-.dark-theme .user-bubble::after {
-  border-left-color: #8b5cf6;
-}
-
-.dark-theme .bubble-footer {
-  border-top-color: rgba(255, 255, 255, 0.1);
+.bubble-footer {
+  border-top-color: var(--color-border);
 }

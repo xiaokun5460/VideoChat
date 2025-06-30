@@ -4,7 +4,6 @@
  */
 
 
-import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   Card,
@@ -15,8 +14,7 @@ import {
   Tag,
   Tooltip,
   Empty,
-  Spin,
-  message
+  Spin
 } from 'antd';
 import {
   BulbOutlined,
@@ -28,6 +26,8 @@ import {
   PictureOutlined
 } from '@ant-design/icons';
 import { useContentExport } from '../../hooks/useContentExport';
+import { useClipboard } from '../../hooks/useClipboard';
+import { exportSummaryReport } from '../../utils/exportUtils';
 import './StreamingStyles.css';
 
 const { Title, Paragraph, Text } = Typography;
@@ -39,47 +39,20 @@ const ModernSummaryView = ({
   detailedSummaryStreamAPI,
   className = ''
 }) => {
-  const [copyLoading, setCopyLoading] = useState(false);
+  // 剪贴板Hook
+  const { copyToClipboard, loading: copyLoading } = useClipboard();
 
   // 内容导出Hook
   const { loading: exportLoading, exportToImage } = useContentExport();
 
   // 复制总结内容
   const handleCopy = async (content) => {
-    setCopyLoading(true);
-    try {
-      await navigator.clipboard.writeText(content);
-      message.success('已复制到剪贴板');
-    } catch (error) {
-      console.error('Copy failed:', error);
-      message.error('复制失败');
-    } finally {
-      setCopyLoading(false);
-    }
+    await copyToClipboard(content);
   };
 
   // 导出总结
   const handleExport = () => {
-    const content = `# ${file.name} - 智能总结
-
-## 简要总结
-${file.summary || '暂无总结'}
-
-## 详细总结
-${file.detailedSummary || '暂无详细总结'}
-
----
-生成时间: ${new Date().toLocaleString()}
-文件名: ${file.name}
-`;
-
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${file.name}-summary.md`;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportSummaryReport(file);
   };
 
   // 导出总结为图片

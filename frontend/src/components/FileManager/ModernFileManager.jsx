@@ -25,7 +25,8 @@ import {
   MoreOutlined,
   CloudUploadOutlined,
   CheckCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  StopOutlined
 } from '@ant-design/icons';
 import './ModernFileManager.css';
 
@@ -37,6 +38,8 @@ const ModernFileManager = ({
   onFileDelete,
   onFileSelect,
   onTranscribe,
+  onStopTranscription,
+  onTranscribeDownloaded,
   selectedFiles = [],
   transcribingFiles = new Set(),
   className = ''
@@ -76,36 +79,60 @@ const ModernFileManager = ({
   };
 
   // 文件操作菜单
-  const getFileActions = (file) => [
-    {
-      key: 'transcribe',
-      label: '开始转录',
-      icon: <PlayCircleOutlined />,
-      disabled: transcribingFiles.has(file.name) || file.transcription,
-      onClick: () => onTranscribe(file)
-    },
-    {
-      key: 'download',
-      label: '下载文件',
-      icon: <DownloadOutlined />,
-      onClick: () => {
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.download = file.name;
-        link.click();
+  const getFileActions = (file) => {
+    const actions = [];
+
+    // 转录相关操作
+    if (transcribingFiles.has(file.name)) {
+      actions.push({
+        key: 'stop-transcribe',
+        label: '停止转录',
+        icon: <StopOutlined />,
+        onClick: () => onStopTranscription?.()
+      });
+    } else if (!file.transcription) {
+      if (file.isDownloaded && onTranscribeDownloaded) {
+        actions.push({
+          key: 'transcribe-downloaded',
+          label: '转录文件',
+          icon: <PlayCircleOutlined />,
+          onClick: () => onTranscribeDownloaded(file)
+        });
+      } else {
+        actions.push({
+          key: 'transcribe',
+          label: '开始转录',
+          icon: <PlayCircleOutlined />,
+          onClick: () => onTranscribe(file)
+        });
       }
-    },
-    {
-      type: 'divider'
-    },
-    {
-      key: 'delete',
-      label: '删除文件',
-      icon: <DeleteOutlined />,
-      danger: true,
-      onClick: () => onFileDelete(file)
     }
-  ];
+
+    // 其他操作
+    actions.push(
+      {
+        key: 'download',
+        label: '下载文件',
+        icon: <DownloadOutlined />,
+        onClick: () => {
+          const link = document.createElement('a');
+          link.href = file.url;
+          link.download = file.name;
+          link.click();
+        }
+      },
+      { type: 'divider' },
+      {
+        key: 'delete',
+        label: '删除文件',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: () => onFileDelete(file)
+      }
+    );
+
+    return actions;
+  };
 
   // 上传配置
   const uploadProps = {
