@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoChat 监控仪表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 300;
+        }
+
+        .header .subtitle {
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .metric-card h3 {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-unit {
+            color: #999;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-healthy { background-color: #4CAF50; }
+        .status-warning { background-color: #FF9800; }
+        .status-error { background-color: #F44336; }
+
+        .charts-section {
+            margin-top: 2rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .chart-canvas {
+            max-height: 400px;
+        }
+
+        .logs-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .log-entry {
+            padding: 0.75rem;
+            border-left: 4px solid #ddd;
+            margin-bottom: 0.5rem;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+
+        .log-entry.error { border-left-color: #F44336; }
+        .log-entry.warning { border-left-color: #FF9800; }
+        .log-entry.info { border-left-color: #2196F3; }
+
+        .refresh-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+        }
+
+        .refresh-button:hover {
+            background: #5a6fd8;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .metric-value {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>VideoChat 监控仪表板</h1>
+        <div class="subtitle">实时系统监控和性能指标</div>
+    </div>
+
+    <div class="container">
+        <div class="auto-refresh">
+            <button class="refresh-button" onclick="refreshData()">刷新数据</button>
+            <label>
+                <input type="checkbox" id="autoRefresh" checked> 自动刷新 (30秒)
+            </label>
+            <span id="lastUpdate">最后更新: --</span>
+        </div>
+
+        <!-- 关键指标 -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <h3>系统状态</h3>
+                <div class="metric-value">
+                    <span class="status-indicator status-healthy"></span>
+                    <span id="systemStatus">健康</span>
+                </div>
+                <div class="metric-unit">运行时间: <span id="uptime">--</span></div>
+            </div>
+
+            <div class="metric-card">
+                <h3>CPU 使用率</h3>
+                <div class="metric-value" id="cpuUsage">--</div>
+                <div class="metric-unit">%</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>内存使用率</h3>
+                <div class="metric-value" id="memoryUsage">--</div>
+                <div class="metric-unit">%</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>活跃请求</h3>
+                <div class="metric-value" id="activeRequests">--</div>
+                <div class="metric-unit">个</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>总请求数</h3>
+                <div class="metric-value" id="totalRequests">--</div>
+                <div class="metric-unit">次</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>缓存命中率</h3>
+                <div class="metric-value" id="cacheHitRate">--</div>
+                <div class="metric-unit">%</div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="charts-section">
+            <div class="chart-container">
+                <div class="chart-title">系统资源使用趋势</div>
+                <canvas id="resourceChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">API 请求统计</div>
+                <canvas id="requestChart" class="chart-canvas"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">转录任务统计</div>
+                <canvas id="transcriptionChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- 日志区域 -->
+        <div class="logs-section">
+            <h3>最近日志</h3>
+            <div id="logContainer">
+                <div class="log-entry info">等待日志数据...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let charts = {};
+        let autoRefreshInterval;
+        let isLoading = false;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            refreshData();
+            setupAutoRefresh();
+        });
+
+        // 初始化图表
+        function initCharts() {
+            // 资源使用图表
+            const resourceCtx = document.getElementById('resourceChart').getContext('2d');
+            charts.resource = new Chart(resourceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'CPU使用率',
+                            data: [],
+                            borderColor: '#FF6384',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            tension: 0.4
+                        },
+                        {
+                            label: '内存使用率',
+                            data: [],
+                            borderColor: '#36A2EB',
+                            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // 请求统计图表
+            const requestCtx = document.getElementById('requestChart').getContext('2d');
+            charts.request = new Chart(requestCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['成功', '客户端错误', '服务器错误'],
+                    datasets: [{
+                        label: '请求数量',
+                        data: [0, 0, 0],
+                        backgroundColor: ['#4CAF50', '#FF9800', '#F44336']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // 转录统计图表
+            const transcriptionCtx = document.getElementById('transcriptionChart').getContext('2d');
+            charts.transcription = new Chart(transcriptionCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['已完成', '进行中', '失败'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: ['#4CAF50', '#2196F3', '#F44336']
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        // 刷新数据
+        async function refreshData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            document.body.classList.add('loading');
+
+            try {
+                // 获取性能统计
+                const perfResponse = await fetch('/api/performance/stats');
+                const perfData = await perfResponse.json();
+
+                // 获取健康检查
+                const healthResponse = await fetch('/api/performance/health');
+                const healthData = await healthResponse.json();
+
+                // 更新指标
+                updateMetrics(perfData.data, healthData);
+
+                // 更新图表
+                updateCharts(perfData.data);
+
+                // 更新时间戳
+                document.getElementById('lastUpdate').textContent = 
+                    `最后更新: ${new Date().toLocaleTimeString()}`;
+
+            } catch (error) {
+                console.error('刷新数据失败:', error);
+                showError('数据刷新失败，请检查服务器连接');
+            } finally {
+                isLoading = false;
+                document.body.classList.remove('loading');
+            }
+        }
+
+        // 更新指标
+        function updateMetrics(perfData, healthData) {
+            // 系统状态
+            const statusElement = document.getElementById('systemStatus');
+            const statusIndicator = statusElement.previousElementSibling;
+            
+            if (healthData.status === 'healthy') {
+                statusElement.textContent = '健康';
+                statusIndicator.className = 'status-indicator status-healthy';
+            } else {
+                statusElement.textContent = '异常';
+                statusIndicator.className = 'status-indicator status-error';
+            }
+
+            // 运行时间
+            if (healthData.uptime_seconds) {
+                const hours = Math.floor(healthData.uptime_seconds / 3600);
+                const minutes = Math.floor((healthData.uptime_seconds % 3600) / 60);
+                document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+            }
+
+            // 资源使用率
+            if (perfData.resource_stats && perfData.resource_stats.current_status) {
+                const cpu = perfData.resource_stats.current_status.cpu_percent || 0;
+                const memory = perfData.resource_stats.current_status.memory_percent || 0;
+                
+                document.getElementById('cpuUsage').textContent = cpu.toFixed(1);
+                document.getElementById('memoryUsage').textContent = memory.toFixed(1);
+            }
+
+            // 队列统计
+            if (perfData.queue_stats) {
+                document.getElementById('activeRequests').textContent = 
+                    perfData.queue_stats.running_tasks || 0;
+                document.getElementById('totalRequests').textContent = 
+                    perfData.queue_stats.total_tasks || 0;
+            }
+
+            // 缓存命中率
+            if (perfData.service_stats) {
+                const hitRate = perfData.service_stats.cache_hit_rate || 0;
+                document.getElementById('cacheHitRate').textContent = hitRate.toFixed(1);
+            }
+        }
+
+        // 更新图表
+        function updateCharts(perfData) {
+            // 更新资源图表
+            if (perfData.resource_stats && perfData.resource_stats.current_status) {
+                const now = new Date().toLocaleTimeString();
+                const cpu = perfData.resource_stats.current_status.cpu_percent || 0;
+                const memory = perfData.resource_stats.current_status.memory_percent || 0;
+
+                // 保持最近20个数据点
+                if (charts.resource.data.labels.length >= 20) {
+                    charts.resource.data.labels.shift();
+                    charts.resource.data.datasets[0].data.shift();
+                    charts.resource.data.datasets[1].data.shift();
+                }
+
+                charts.resource.data.labels.push(now);
+                charts.resource.data.datasets[0].data.push(cpu);
+                charts.resource.data.datasets[1].data.push(memory);
+                charts.resource.update();
+            }
+
+            // 更新请求图表（示例数据）
+            if (perfData.queue_stats) {
+                const total = perfData.queue_stats.total_tasks || 0;
+                const completed = perfData.queue_stats.completed_tasks || 0;
+                const failed = perfData.queue_stats.failed_tasks || 0;
+                const success = completed - failed;
+
+                charts.request.data.datasets[0].data = [success, 0, failed];
+                charts.request.update();
+            }
+
+            // 更新转录图表
+            if (perfData.service_stats) {
+                const completed = perfData.service_stats.completed_tasks || 0;
+                const failed = perfData.service_stats.failed_tasks || 0;
+                const running = 0; // 可以从其他地方获取
+
+                charts.transcription.data.datasets[0].data = [completed, running, failed];
+                charts.transcription.update();
+            }
+        }
+
+        // 设置自动刷新
+        function setupAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            
+            function toggleAutoRefresh() {
+                if (checkbox.checked) {
+                    autoRefreshInterval = setInterval(refreshData, 30000); // 30秒
+                } else {
+                    clearInterval(autoRefreshInterval);
+                }
+            }
+
+            checkbox.addEventListener('change', toggleAutoRefresh);
+            toggleAutoRefresh(); // 初始设置
+        }
+
+        // 显示错误
+        function showError(message) {
+            const logContainer = document.getElementById('logContainer');
+            const errorEntry = document.createElement('div');
+            errorEntry.className = 'log-entry error';
+            errorEntry.textContent = `${new Date().toLocaleTimeString()} ERROR: ${message}`;
+            logContainer.insertBefore(errorEntry, logContainer.firstChild);
+
+            // 保持最近10条日志
+            while (logContainer.children.length > 10) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

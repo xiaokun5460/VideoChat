@@ -1,0 +1,49 @@
+/* 流式输出相关样式 */
+
+/* 流式光标动画 */
+.streaming-cursor {
+  animation: blink 1s infinite;
+  margin-left: 2px;
+  color: #1890ff;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 流式内容容器 */
+.summary-content {
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.streaming-evaluation {
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+/* 加载状态样式 */
+.loading-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+}
+
+/* 空状态样式 */
+.empty-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
+
+.empty-summary-icon {
+  font-size: 48px;
+  color: #d9d9d9;
+}
