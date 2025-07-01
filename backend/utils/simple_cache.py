@@ -15,48 +15,65 @@ from functools import wraps
 
 
 class SimpleCache:
-    """简单内存缓存"""
-    
+    """简单内存缓存（优化版）"""
+
     def __init__(self, max_size: int = 1000):
         self._cache: Dict[str, Dict] = {}
         self._max_size = max_size
         self._access_order = []  # LRU顺序
+        self._stats = {
+            'hits': 0,
+            'misses': 0,
+            'evictions': 0,
+            'total_size': 0
+        }
     
     def get(self, key: str) -> Optional[Any]:
-        """获取缓存"""
+        """获取缓存（优化版）"""
         if key in self._cache:
             entry = self._cache[key]
-            
+
             # 检查是否过期
             if time.time() > entry['expires_at']:
                 self.delete(key)
+                self._stats['misses'] += 1
                 return None
-            
-            # 更新访问顺序
-            if key in self._access_order:
-                self._access_order.remove(key)
-            self._access_order.append(key)
-            
+
+            # 更新访问顺序（优化：只在必要时移动）
+            if key != self._access_order[-1] if self._access_order else True:
+                if key in self._access_order:
+                    self._access_order.remove(key)
+                self._access_order.append(key)
+
             entry['hit_count'] += 1
+            self._stats['hits'] += 1
             return entry['value']
-        
+
+        self._stats['misses'] += 1
         return None
     
     def set(self, key: str, value: Any, ttl_seconds: int = 3600):
-        """设置缓存"""
+        """设置缓存（优化版）"""
         # 如果缓存已满，删除最少使用的
         if len(self._cache) >= self._max_size and key not in self._cache:
             if self._access_order:
                 oldest_key = self._access_order.pop(0)
                 del self._cache[oldest_key]
-        
+                self._stats['evictions'] += 1
+
+        # 计算值的大小（粗略估算）
+        value_size = len(str(value)) if value else 0
+
         self._cache[key] = {
             'value': value,
             'expires_at': time.time() + ttl_seconds,
             'hit_count': 0,
-            'created_at': time.time()
+            'created_at': time.time(),
+            'size': value_size
         }
-        
+
+        self._stats['total_size'] += value_size
+
         # 更新访问顺序
         if key in self._access_order:
             self._access_order.remove(key)
@@ -75,6 +92,42 @@ class SimpleCache:
         """清空缓存"""
         self._cache.clear()
         self._access_order.clear()
+        self._stats = {
+            'hits': 0,
+            'misses': 0,
+            'evictions': 0,
+            'total_size': 0
+        }
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        total_requests = self._stats['hits'] + self._stats['misses']
+        hit_rate = (self._stats['hits'] / total_requests * 100) if total_requests > 0 else 0
+
+        return {
+            'hits': self._stats['hits'],
+            'misses': self._stats['misses'],
+            'hit_rate': hit_rate,
+            'evictions': self._stats['evictions'],
+            'current_size': len(self._cache),
+            'max_size': self._max_size,
+            'total_data_size': self._stats['total_size'],
+            'average_item_size': self._stats['total_size'] / len(self._cache) if self._cache else 0
+        }
+
+    def optimize(self):
+        """优化缓存（清理过期项）"""
+        current_time = time.time()
+        expired_keys = []
+
+        for key, entry in self._cache.items():
+            if current_time > entry['expires_at']:
+                expired_keys.append(key)
+
+        for key in expired_keys:
+            self.delete(key)
+
+        return len(expired_keys)
     
     def cleanup_expired(self) -> int:
         """清理过期缓存"""
@@ -144,6 +197,10 @@ class SimpleCacheManager:
         return {
             "memory_cache": self._cache.get_stats()
         }
+
+    def get_stats(self) -> Dict[str, Any]:
+        """获取缓存管理器统计信息"""
+        return self._cache.get_stats()
     
     def cache_result(
         self,
