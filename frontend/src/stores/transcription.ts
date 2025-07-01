@@ -6,6 +6,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { TranscriptionResult, TranscriptionSegment, FileInfo } from '@/types'
+import { TasksAPI } from '@/services/tasks'
+import { TaskType } from '@/types'
 
 export const useTranscriptionStore = defineStore('transcription', () => {
   // 状态定义
@@ -50,27 +52,47 @@ export const useTranscriptionStore = defineStore('transcription', () => {
     if (!file || file.id !== fileId) {
       throw new Error('File not found or mismatch')
     }
-    
-    // 创建转录结果对象
-    const transcriptionResult: TranscriptionResult = {
-      id: `transcription_${Date.now()}`,
-      fileId,
-      segments: [],
-      language: transcriptionConfig.value.language,
-      duration: 0,
-      status: 'processing',
-      progress: 0,
-      createdAt: new Date()
+
+    try {
+      // 调用后端API创建转录任务
+      const taskResponse = await TasksAPI.createTask({
+        task_type: TaskType.TRANSCRIPTION,
+        file_id: fileId,
+        parameters: {
+          language: transcriptionConfig.value.language,
+          model: transcriptionConfig.value.model,
+          device: transcriptionConfig.value.device,
+          speaker_diarization: transcriptionConfig.value.speakerDiarization,
+          timestamps: transcriptionConfig.value.timestamps
+        }
+      })
+
+      const taskId = taskResponse.task_id
+
+      // 创建转录结果对象
+      const transcriptionResult: TranscriptionResult = {
+        id: taskId, // 使用后端返回的任务ID
+        fileId,
+        segments: [],
+        language: transcriptionConfig.value.language,
+        duration: 0,
+        status: 'processing',
+        progress: 0,
+        createdAt: new Date()
+      }
+
+      // 保存到状态
+      transcriptionResults.value.set(transcriptionResult.id, transcriptionResult)
+      activeTranscription.value = transcriptionResult
+      isTranscribing.value = true
+      transcriptionProgress.value = 0
+      transcriptionError.value = null
+
+      return taskId
+    } catch (error) {
+      console.error('创建转录任务失败:', error)
+      throw error
     }
-    
-    // 保存到状态
-    transcriptionResults.value.set(transcriptionResult.id, transcriptionResult)
-    activeTranscription.value = transcriptionResult
-    isTranscribing.value = true
-    transcriptionProgress.value = 0
-    transcriptionError.value = null
-    
-    return transcriptionResult.id
   }
   
   /**

@@ -43,7 +43,7 @@ export interface TranscriptionProgressResponse {
  */
 export class TranscriptionAPI {
   /**
-   * 上传文件并开始转录 - 匹配后端 /api/upload
+   * 上传文件并开始转录 - 匹配后端 /api/files/upload
    */
   static async uploadAndTranscribe(
     file: File,
@@ -52,7 +52,7 @@ export class TranscriptionAPI {
     const formData = new FormData()
     formData.append('file', file)
 
-    return apiClient.upload('/upload', formData, {
+    return apiClient.upload('/files/upload', formData, {
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {
           const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
@@ -63,36 +63,38 @@ export class TranscriptionAPI {
   }
 
   /**
-   * 获取转录进度 - 匹配后端 /api/transcription-progress
+   * 获取转录进度 - 匹配后端 /api/tasks/{task_id}/progress
    */
   static async getTranscriptionProgress(taskId?: string): Promise<TranscriptionProgressResponse> {
-    const url = taskId ? `/transcription-progress/${taskId}` : '/transcription-progress'
-    return apiClient.get(url)
+    if (!taskId) {
+      throw new Error('任务ID不能为空')
+    }
+    return apiClient.get(`/tasks/${taskId}/progress`)
   }
 
   /**
-   * 获取转录结果
+   * 获取转录结果 - 匹配后端 /api/transcriptions/{id}
    */
   static async getTranscriptionResult(transcriptionId: string): Promise<TranscriptionResult> {
-    return apiClient.get(`/transcription/result/${transcriptionId}`)
+    return apiClient.get(`/transcriptions/${transcriptionId}`)
   }
 
   /**
-   * 取消转录任务
+   * 取消转录任务 - 匹配后端 /api/transcriptions/{id}/cancel
    */
   static async cancelTranscription(transcriptionId: string): Promise<{ success: boolean }> {
-    return apiClient.post(`/transcription/cancel/${transcriptionId}`)
+    return apiClient.post(`/transcriptions/${transcriptionId}/cancel`)
   }
 
   /**
-   * 删除转录结果
+   * 删除转录结果 - 匹配后端 /api/transcriptions/{id}
    */
   static async deleteTranscription(transcriptionId: string): Promise<{ success: boolean }> {
-    return apiClient.delete(`/transcription/${transcriptionId}`)
+    return apiClient.delete(`/transcriptions/${transcriptionId}`)
   }
 
   /**
-   * 获取用户的所有转录记录
+   * 获取用户的所有转录记录 - 匹配后端 /api/transcriptions/
    */
   static async getTranscriptionHistory(
     page = 1,
@@ -103,43 +105,43 @@ export class TranscriptionAPI {
     page: number
     pageSize: number
   }> {
-    return apiClient.get('/transcription/history', {
+    return apiClient.get('/transcriptions', {
       params: { page, pageSize },
     })
   }
 
   /**
-   * 更新转录配置
+   * 更新转录配置 - 匹配后端 /api/transcriptions/config
    */
   static async updateTranscriptionConfig(
     config: TranscriptionConfig,
   ): Promise<{ success: boolean }> {
-    return apiClient.post('/transcription/config', config)
+    return apiClient.post('/transcriptions/config', config)
   }
 
   /**
-   * 获取转录配置
+   * 获取转录配置 - 匹配后端 /api/transcriptions/config
    */
   static async getTranscriptionConfig(): Promise<TranscriptionConfig> {
-    return apiClient.get('/transcription/config')
+    return apiClient.get('/transcriptions/config')
   }
 
   /**
-   * 获取支持的语言列表
+   * 获取支持的语言列表 - 匹配后端 /api/transcriptions/languages
    */
   static async getSupportedLanguages(): Promise<{
     languages: Array<{ code: string; name: string; nativeName: string }>
   }> {
-    return apiClient.get('/transcription/languages')
+    return apiClient.get('/transcriptions/languages')
   }
 
   /**
-   * 获取支持的模型列表
+   * 获取支持的模型列表 - 匹配后端 /api/transcriptions/models
    */
   static async getSupportedModels(): Promise<{
     models: Array<{ id: string; name: string; description: string; size: string }>
   }> {
-    return apiClient.get('/transcription/models')
+    return apiClient.get('/transcriptions/models')
   }
 
   /**
@@ -154,7 +156,7 @@ export class TranscriptionAPI {
       includeConfidence?: boolean
     },
   ): Promise<{ downloadUrl: string }> {
-    return apiClient.post(`/transcription/export/${transcriptionId}`, {
+    return apiClient.post(`/transcriptions/${transcriptionId}/export`, {
       format,
       options,
     })
@@ -180,7 +182,7 @@ export class TranscriptionAPI {
     page: number
     pageSize: number
   }> {
-    return apiClient.get('/transcription/search', {
+    return apiClient.get('/transcriptions/search', {
       params: { query, fileId, page, pageSize },
     })
   }

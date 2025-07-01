@@ -6,6 +6,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { FileInfo, VideoDownloadRequest, VideoDownloadProgress } from '@/types'
+import { FileStatus } from '@/types'
+import { FilesAPI } from '@/services/files'
 
 export const useFilesStore = defineStore('files', () => {
   // 状态定义
@@ -34,13 +36,15 @@ export const useFilesStore = defineStore('files', () => {
   // 计算属性
   const fileCount = computed(() => files.value.size)
   const uploadingFiles = computed(() =>
-    Array.from(files.value.values()).filter((file) => file.status === 'uploading'),
+    Array.from(files.value.values()).filter((file) => file.status === FileStatus.PROCESSING),
   )
   const completedFiles = computed(() =>
-    Array.from(files.value.values()).filter((file) => file.status === 'completed'),
+    Array.from(files.value.values()).filter((file) =>
+      file.status === FileStatus.COMPLETED || file.status === FileStatus.UPLOADED
+    ),
   )
   const errorFiles = computed(() =>
-    Array.from(files.value.values()).filter((file) => file.status === 'error'),
+    Array.from(files.value.values()).filter((file) => file.status === FileStatus.ERROR),
   )
 
   const filteredFiles = computed(() => {
@@ -76,7 +80,7 @@ export const useFilesStore = defineStore('files', () => {
           comparison = a.size - b.size
           break
         case 'createdAt':
-          comparison = a.createdAt.getTime() - b.createdAt.getTime()
+          comparison = (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0)
           break
       }
 
@@ -110,8 +114,11 @@ export const useFilesStore = defineStore('files', () => {
       name: file.name,
       size: file.size,
       type: file.type,
+      hash: '',
+      status: FileStatus.UPLOADED,
+      upload_time: new Date().toISOString(),
+      url: '',
       uploadProgress: 0,
-      status: 'pending',
       createdAt: new Date(),
     }
 
@@ -128,7 +135,7 @@ export const useFilesStore = defineStore('files', () => {
     const file = files.value.get(fileId)
     if (!file) return
 
-    file.status = 'uploading'
+    file.status = FileStatus.PROCESSING
     file.uploadProgress = 0
     files.value.set(fileId, { ...file })
 
@@ -153,14 +160,35 @@ export const useFilesStore = defineStore('files', () => {
   /**
    * 完成文件上传
    */
-  const completeFileUpload = (fileId: string, url?: string) => {
+  const completeFileUpload = (fileId: string, uploadResponse?: any) => {
     const file = files.value.get(fileId)
     if (!file) return
 
-    file.status = 'completed'
-    file.uploadProgress = 100
-    if (url) file.url = url
-    files.value.set(fileId, { ...file })
+    // 如果有后端返回的完整文件信息，使用它更新文件
+    if (uploadResponse) {
+      const updatedFile: FileInfo = {
+        ...file,
+        id: uploadResponse.id || fileId,
+        hash: uploadResponse.hash,
+        status: uploadResponse.status || 'completed',
+        upload_time: uploadResponse.upload_time,
+        url: uploadResponse.url,
+        description: uploadResponse.description,
+        tags: uploadResponse.tags,
+        uploadProgress: 100
+      }
+      files.value.set(updatedFile.id, updatedFile)
+
+      // 如果ID发生了变化，删除旧的记录
+      if (uploadResponse.id && uploadResponse.id !== fileId) {
+        files.value.delete(fileId)
+      }
+    } else {
+      // 兼容旧的方式
+      file.status = FileStatus.COMPLETED
+      file.uploadProgress = 100
+      files.value.set(fileId, { ...file })
+    }
 
     // 从上传队列中移除
     uploadQueue.value = uploadQueue.value.filter((f) => f.id !== fileId)
@@ -179,7 +207,7 @@ export const useFilesStore = defineStore('files', () => {
     const file = files.value.get(fileId)
     if (!file) return
 
-    file.status = 'error'
+    file.status = FileStatus.ERROR
     files.value.set(fileId, { ...file })
 
     uploadError.value = error
@@ -316,7 +344,7 @@ export const useFilesStore = defineStore('files', () => {
     const file = files.value.get(fileId)
     if (!file) return
 
-    file.status = 'pending'
+    file.status = FileStatus.UPLOADED
     file.uploadProgress = 0
     files.value.set(fileId, { ...file })
 
@@ -376,6 +404,66 @@ export const useFilesStore = defineStore('files', () => {
   }
 
   /**
+   * 从后端获取文件列表
+   */
+  const fetchFileList = async (
+    page = 1,
+    pageSize = 100,
+    filters?: {
+      type?: 'audio' | 'video'
+      status?: 'pending' | 'uploading' | 'completed' | 'error'
+    }
+  ) => {
+    try {
+      const response = await FilesAPI.getFileList(page, pageSize, filters)
+
+      // 清空现有文件列表
+      files.value.clear()
+
+      // 添加从后端获取的文件
+      if (response.items) {
+        response.items.forEach((fileData: any) => {
+          const fileInfo: FileInfo = {
+            id: fileData.id,
+            name: fileData.name,
+            size: fileData.size,
+            type: fileData.type,
+            hash: fileData.hash,
+            status: fileData.status,
+            upload_time: fileData.upload_time,
+            url: fileData.url,
+            description: fileData.description,
+            tags: fileData.tags,
+            // 转换为前端兼容格式
+            uploadProgress: 100, // 已上传完成
+            createdAt: new Date(fileData.upload_time)
+          }
+          files.value.set(fileInfo.id, fileInfo)
+        })
+      }
+
+      return response
+    } catch (error) {
+      console.error('获取文件列表失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 刷新文件列表（获取音频和视频文件）
+   */
+  const refreshFileList = async () => {
+    try {
+      // 获取音频文件
+      await fetchFileList(1, 50, { type: 'audio' })
+      // 获取视频文件
+      await fetchFileList(1, 50, { type: 'video' })
+    } catch (error) {
+      console.error('刷新文件列表失败:', error)
+    }
+  }
+
+  /**
    * 重置文件状态
    */
   const resetFileState = () => {
@@ -428,6 +516,8 @@ export const useFilesStore = defineStore('files', () => {
     clearCompletedDownloads,
     setTranscriptionResult,
     resetFileState,
+    fetchFileList,
+    refreshFileList,
   }
 })
 

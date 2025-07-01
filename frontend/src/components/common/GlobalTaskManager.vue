@@ -142,7 +142,7 @@ const canCancelTask = (task: any) => {
 
 const cancelTask = async (taskId: string) => {
   try {
-    await apiClient.post(`/progress/${taskId}/cancel`)
+    await apiClient.post(`/tasks/progress/${taskId}/cancel`)
     message.success('任务已取消')
     await fetchActiveTasks()
   } catch (error) {
@@ -153,10 +153,9 @@ const cancelTask = async (taskId: string) => {
 
 const fetchActiveTasks = async () => {
   try {
-    const response = await apiClient.get('/progress/active')
-    if (response.data.success) {
-      activeTasks.value = response.data.data.tasks || []
-    }
+    const response = await apiClient.get('/tasks/progress/active')
+    // API适配器已经提取了业务数据，直接使用
+    activeTasks.value = response.tasks || []
   } catch (error) {
     console.error('获取活跃任务失败:', error)
   }

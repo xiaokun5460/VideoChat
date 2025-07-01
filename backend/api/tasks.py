@@ -172,6 +172,33 @@ async def get_task_progress(
         )
 
 
+@router.get("/progress/active", summary="获取活跃任务列表", response_model=StandardResponse)
+async def get_active_tasks():
+    """
+    获取所有活跃任务列表
+
+    返回当前正在执行、排队或初始化中的任务
+    """
+    try:
+        active_tasks = await task_service.get_active_tasks()
+
+        return response_manager.success(
+            data={
+                "tasks": active_tasks,
+                "count": len(active_tasks)
+            },
+            message="活跃任务列表获取成功"
+        )
+
+    except VideoChateException:
+        raise
+    except Exception as e:
+        return response_manager.error(
+            message=f"获取活跃任务失败: {str(e)}",
+            code=ErrorCodes.INTERNAL_ERROR
+        )
+
+
 @router.post("/{task_id}/cancel", summary="取消任务", response_model=StandardResponse)
 async def cancel_task(
     task_id: str = Path(..., description="任务ID")

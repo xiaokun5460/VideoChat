@@ -160,13 +160,29 @@ class FileService(CRUDService):
     
     async def get_by_id(self, file_id: str) -> Optional[FileInfo]:
         """根据ID获取文件信息"""
-        # 通过映射获取文件路径
+        # 首先尝试通过UUID映射获取文件路径
         file_path = self._file_id_to_path.get(file_id)
-        if not file_path:
-            return None
+        file_record = None
 
-        # 从数据库获取文件记录
-        file_record = FileDAO.get_file_by_path(file_path)
+        if file_path:
+            # 从数据库获取文件记录
+            file_record = FileDAO.get_file_by_path(file_path)
+        else:
+            # 如果UUID映射找不到，尝试作为数据库ID查找
+            try:
+                db_id = int(file_id)
+                with get_db_session() as session:
+                    file_record = session.query(FileRecord).filter(
+                        FileRecord.id == db_id
+                    ).first()
+                    if file_record:
+                        file_path = file_record.file_path
+                        # 将查询结果从会话中分离，避免会话关闭后的访问问题
+                        session.expunge(file_record)
+            except (ValueError, TypeError):
+                # file_id不是有效的数据库ID
+                pass
+
         if not file_record:
             return None
 
@@ -274,13 +290,19 @@ class FileService(CRUDService):
     
     async def get_file_path(self, file_id: str) -> Optional[str]:
         """获取文件的物理路径"""
+        # 首先尝试从映射中获取
+        file_path = self._file_id_to_path.get(file_id)
+        if file_path and os.path.exists(file_path):
+            return file_path
+
+        # 如果映射中没有，尝试通过文件信息获取
         file_data = await self.get_by_id(file_id)
-        if not file_data or not file_data.get("url"):
+        if not file_data or not file_data.url:
             return None
-        
-        filename = os.path.basename(file_data["url"])
+
+        filename = os.path.basename(file_data.url)
         file_path = os.path.join(settings.upload_dir, filename)
-        
+
         if os.path.exists(file_path):
             return file_path
         return None
@@ -345,9 +367,6 @@ class FileService(CRUDService):
         """删除文件"""
         return await self.delete(file_id)
     
-    async def get_file_path(self, file_id: str) -> Optional[str]:
-        """获取文件路径"""
-        return self._file_id_to_path.get(file_id)    
     async def upload_file_from_path(
         self, 
         file_path: str, 

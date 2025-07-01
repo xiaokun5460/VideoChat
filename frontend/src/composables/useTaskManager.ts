@@ -79,13 +79,11 @@ export const useTaskManager = () => {
    */
   const fetchActiveTasks = async (): Promise<TaskInfo[]> => {
     try {
-      const response = await apiClient.get('/progress/active')
-      if (response.data.success) {
-        const tasks = response.data.data.tasks || []
-        activeTasks.value = tasks
-        return tasks
-      }
-      return []
+      const response = await apiClient.get('/tasks/progress/active')
+      // API适配器已经提取了业务数据，直接使用
+      const tasks = response.tasks || []
+      activeTasks.value = tasks
+      return tasks
     } catch (error) {
       console.error('获取活跃任务失败:', error)
       return []
@@ -97,11 +95,9 @@ export const useTaskManager = () => {
    */
   const getTaskDetail = async (taskId: string): Promise<TaskInfo | null> => {
     try {
-      const response = await apiClient.get(`/progress/${taskId}`)
-      if (response.data.success) {
-        return response.data.data
-      }
-      return null
+      const response = await apiClient.get(`/tasks/progress/${taskId}`)
+      // API适配器已经提取了业务数据，直接返回
+      return response as TaskInfo
     } catch (error) {
       console.error('获取任务详情失败:', error)
       return null
@@ -113,13 +109,11 @@ export const useTaskManager = () => {
    */
   const cancelTask = async (taskId: string): Promise<boolean> => {
     try {
-      const response = await apiClient.post(`/progress/${taskId}/cancel`)
-      if (response.data.success) {
-        message.success('任务已取消')
-        await fetchActiveTasks()
-        return true
-      }
-      return false
+      await apiClient.post(`/tasks/progress/${taskId}/cancel`)
+      // API适配器已经提取了业务数据，如果没有抛出错误就说明成功
+      message.success('任务已取消')
+      await fetchActiveTasks()
+      return true
     } catch (error) {
       console.error('取消任务失败:', error)
       message.error('取消任务失败')
@@ -159,13 +153,13 @@ export const useTaskManager = () => {
    * 监听单个任务的流式进度更新
    */
   const watchTaskProgress = (taskId: string, onUpdate: (task: TaskInfo) => void) => {
-    const eventSource = new EventSource(`/api/progress/${taskId}/stream`)
-    
+    const eventSource = new EventSource(`/api/tasks/progress/${taskId}/stream`)
+
     eventSource.onmessage = (event) => {
       try {
         const taskData = JSON.parse(event.data)
         onUpdate(taskData)
-        
+
         // 更新本地任务列表
         const index = activeTasks.value.findIndex(t => t.task_id === taskId)
         if (index !== -1) {

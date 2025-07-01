@@ -104,7 +104,7 @@
         <!-- 媒体播放器 -->
         <div v-if="selectedFile" class="media-player-section">
           <MediaPlayer
-            :src="selectedFile.url || ''"
+            :src="getFileUrl(selectedFile)"
             :type="selectedFile.type.startsWith('audio/') ? 'audio' : 'video'"
             :title="selectedFile.name"
             @timeupdate="handleTimeUpdate"
@@ -271,6 +271,19 @@ const getFileExtension = (filename: string): string => {
   return filename.split('.').pop()?.toUpperCase() || ''
 }
 
+const getFileUrl = (file: FileInfo): string => {
+  if (!file.url) return ''
+
+  // 如果已经是完整URL，直接返回
+  if (file.url.startsWith('http://') || file.url.startsWith('https://')) {
+    return file.url
+  }
+
+  // 构建完整的文件URL
+  const baseUrl = 'http://localhost:8000'
+  return `${baseUrl}${file.url}`
+}
+
 const selectFile = (file: FileInfo) => {
   selectedFile.value = file
   showFileList.value = false
@@ -347,7 +360,15 @@ const handleExport = (format: string, options?: any) => {
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
+  // 首先从后端获取文件列表
+  try {
+    await filesStore.refreshFileList()
+  } catch (error) {
+    console.error('获取文件列表失败:', error)
+    message.error('获取文件列表失败')
+  }
+
   // 检查是否有当前文件
   const currentFileId = filesStore.currentFile?.id
   if (currentFileId) {

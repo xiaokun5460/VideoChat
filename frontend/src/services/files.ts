@@ -4,35 +4,16 @@
  */
 
 import { apiClient } from './api'
-import type { FileInfo, VideoDownloadRequest, ExportOptions } from '@/types'
+import type {
+  FileInfo,
+  FileUploadResponse,
+  FileListResponse,
+  VideoDownloadRequest,
+  ExportOptions,
+  FileStatus
+} from '@/types'
 
-// 文件上传响应
-export interface FileUploadResponse {
-  fileId: string
-  filename: string
-  size: number
-  type: string
-  url: string
-  uploadedAt: Date
-}
-
-// 视频下载响应
-export interface VideoDownloadResponse {
-  downloadId: string
-  status: 'pending' | 'downloading' | 'completed' | 'error'
-  progress: number
-  filename?: string
-  fileSize?: number
-  error?: string
-}
-
-// 文件列表响应
-export interface FileListResponse {
-  files: FileInfo[]
-  total: number
-  page: number
-  pageSize: number
-}
+// 类型定义已移至 @/types，这里只保留API服务类
 
 /**
  * 文件管理API服务类

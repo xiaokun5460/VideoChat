@@ -55,31 +55,31 @@ export interface EvaluationResult {
  */
 export class AIAPI {
   /**
-   * 生成AI摘要 - 匹配后端 /api/summary
+   * 生成AI摘要 - 匹配后端 /api/ai/summary
    */
   static async generateSummary(request: SummaryRequest): Promise<any> {
-    return apiClient.post('/summary', request)
+    return apiClient.post('/ai/summary', request)
   }
 
   /**
-   * 生成详细总结 - 匹配后端 /api/detailed-summary
+   * 生成详细总结 - 匹配后端 /api/ai/detailed-summary
    */
   static async generateDetailedSummary(request: SummaryRequest): Promise<any> {
-    return apiClient.post('/detailed-summary', request)
+    return apiClient.post('/ai/detailed-summary', request)
   }
 
   /**
-   * 生成思维导图 - 匹配后端 /api/mindmap
+   * 生成思维导图 - 匹配后端 /api/ai/mindmap
    */
   static async generateMindmap(request: MindmapRequest): Promise<any> {
-    return apiClient.post('/mindmap', request)
+    return apiClient.post('/ai/mindmap', request)
   }
 
   /**
-   * 生成思维导图图片 - 匹配后端 /api/mindmap-image
+   * 生成思维导图图片 - 匹配后端 /api/ai/mindmap-image
    */
   static async generateMindmapImage(request: MindmapRequest): Promise<any> {
-    return apiClient.post('/mindmap-image', request)
+    return apiClient.post('/ai/mindmap-image', request)
   }
 
   /**
@@ -118,17 +118,17 @@ export class AIAPI {
   }
 
   /**
-   * AI对话 - 匹配后端 /api/chat
+   * AI对话 - 匹配后端 /api/ai/chat
    */
   static async sendChatMessage(request: ChatRequest): Promise<any> {
-    return apiClient.post('/chat', request)
+    return apiClient.post('/ai/chat', request)
   }
 
   /**
-   * 生成教学评估 - 匹配后端 /api/ai/evaluate-teaching
+   * 生成教学评估 - 匹配后端 /api/ai/teaching-evaluation
    */
   static async generateTeachingEvaluation(request: SummaryRequest): Promise<any> {
-    return apiClient.post('/ai/evaluate-teaching', request)
+    return apiClient.post('/ai/teaching-evaluation', request)
   }
 
   /**

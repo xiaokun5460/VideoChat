@@ -26,7 +26,7 @@ from middleware.error_handler import ErrorHandlerMiddleware
 # 导入新的API路由
 from api import (
     files_router, tasks_router, transcriptions_router,
-    ai_router, system_router
+    ai_router, system_router, progress_router
 )
 
 # 配置日志
