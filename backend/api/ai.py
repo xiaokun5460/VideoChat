@@ -1,23 +1,21 @@
 """
 AI服务API路由
 
-基于AIService的AI功能接口
+基于AIService的AI功能接口，统一响应格式
 """
 
-from typing import List
-from fastapi import APIRouter, Body
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter
 
 from core.response import response_manager
-from core.models import AIRequest, ChatRequest, ChatMessage
-from core.exceptions import VideoChateException, AIServiceException, ErrorCodes
+from core.models import AIRequest, ChatRequest, AIProcessResponse
+from core.exceptions import VideoChateException, ErrorCodes
 from services import ai_service
 
 
 router = APIRouter(prefix="/api/ai", tags=["AI服务"])
 
 
-@router.post("/summary", summary="生成内容总结")
+@router.post("/summary", summary="生成内容总结", response_model=AIProcessResponse)
 async def create_summary(request: AIRequest):
     """
     基于文本内容生成AI总结
@@ -34,23 +32,17 @@ async def create_summary(request: AIRequest):
         if request.stream:
             # 流式响应
             async def generate_summary_stream():
-                try:
-                    async for chunk in ai_service.generate_summary(
-                        request.text, 
-                        stream=True, 
-                        max_length=max_length
-                    ):
-                        yield f"data: {chunk}\n\n"
-                except Exception as e:
-                    yield f"data: [ERROR] {str(e)}\n\n"
+                async for chunk in ai_service.generate_summary(
+                    request.text, 
+                    stream=True, 
+                    max_length=max_length
+                ):
+                    yield chunk
             
-            return StreamingResponse(
-                generate_summary_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive"
-                }
+            return await response_manager.streaming(
+                data_generator=generate_summary_stream(),
+                message="总结生成中",
+                operation_type="summary"
             )
         else:
             # 非流式响应
@@ -70,7 +62,12 @@ async def create_summary(request: AIRequest):
             return response_manager.success(
                 data={
                     "summary": summary_content,
-                    "result_id": result_id
+                    "result_id": result_id,
+                    "type": "summary",
+                    "metadata": {
+                        "max_length": max_length,
+                        "text_length": len(request.text)
+                    }
                 },
                 message="总结生成成功"
             )
@@ -82,9 +79,7 @@ async def create_summary(request: AIRequest):
             message=f"生成总结失败: {str(e)}",
             code=ErrorCodes.AI_SERVICE_ERROR
         )
-
-
-@router.post("/detailed-summary", summary="生成详细总结")
+@router.post("/detailed-summary", summary="生成详细总结", response_model=AIProcessResponse)
 async def create_detailed_summary(request: AIRequest):
     """
     生成深入的内容分析总结
@@ -95,21 +90,15 @@ async def create_detailed_summary(request: AIRequest):
         if request.stream:
             # 流式响应
             async def generate_detailed_summary_stream():
-                try:
-                    async for chunk in ai_service.generate_detailed_summary(
-                        request.text, stream=True
-                    ):
-                        yield f"data: {chunk}\n\n"
-                except Exception as e:
-                    yield f"data: [ERROR] {str(e)}\n\n"
+                async for chunk in ai_service.generate_detailed_summary(
+                    request.text, stream=True
+                ):
+                    yield chunk
             
-            return StreamingResponse(
-                generate_detailed_summary_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive"
-                }
+            return await response_manager.streaming(
+                data_generator=generate_detailed_summary_stream(),
+                message="详细总结生成中",
+                operation_type="detailed_summary"
             )
         else:
             # 非流式响应
@@ -127,7 +116,12 @@ async def create_detailed_summary(request: AIRequest):
             return response_manager.success(
                 data={
                     "detailed_summary": summary_content,
-                    "result_id": result_id
+                    "result_id": result_id,
+                    "type": "detailed_summary",
+                    "metadata": {
+                        "text_length": len(request.text),
+                        "analysis_depth": "detailed"
+                    }
                 },
                 message="详细总结生成成功"
             )
@@ -141,7 +135,7 @@ async def create_detailed_summary(request: AIRequest):
         )
 
 
-@router.post("/mindmap", summary="生成思维导图")
+@router.post("/mindmap", summary="生成思维导图", response_model=AIProcessResponse)
 async def create_mindmap(request: AIRequest):
     """
     生成JSON格式思维导图数据
@@ -152,21 +146,15 @@ async def create_mindmap(request: AIRequest):
         if request.stream:
             # 流式响应
             async def generate_mindmap_stream():
-                try:
-                    async for chunk in ai_service.generate_mindmap(
-                        request.text, stream=True
-                    ):
-                        yield f"data: {chunk}\n\n"
-                except Exception as e:
-                    yield f"data: [ERROR] {str(e)}\n\n"
+                async for chunk in ai_service.generate_mindmap(
+                    request.text, stream=True
+                ):
+                    yield chunk
             
-            return StreamingResponse(
-                generate_mindmap_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive"
-                }
+            return await response_manager.streaming(
+                data_generator=generate_mindmap_stream(),
+                message="思维导图生成中",
+                operation_type="mindmap"
             )
         else:
             # 非流式响应
@@ -184,7 +172,12 @@ async def create_mindmap(request: AIRequest):
             return response_manager.success(
                 data={
                     "mindmap": mindmap_content,
-                    "result_id": result_id
+                    "result_id": result_id,
+                    "type": "mindmap",
+                    "metadata": {
+                        "text_length": len(request.text),
+                        "format": "json"
+                    }
                 },
                 message="思维导图生成成功"
             )
@@ -196,9 +189,7 @@ async def create_mindmap(request: AIRequest):
             message=f"生成思维导图失败: {str(e)}",
             code=ErrorCodes.AI_SERVICE_ERROR
         )
-
-
-@router.post("/chat", summary="智能对话")
+@router.post("/chat", summary="智能对话", response_model=AIProcessResponse)
 async def chat(request: ChatRequest):
     """
     基于内容的AI对话助手
@@ -211,23 +202,17 @@ async def chat(request: ChatRequest):
         if request.stream:
             # 流式响应
             async def generate_chat_stream():
-                try:
-                    async for chunk in ai_service.chat_with_model(
-                        request.messages, 
-                        request.context or "", 
-                        stream=True
-                    ):
-                        yield f"data: {chunk}\n\n"
-                except Exception as e:
-                    yield f"data: [ERROR] {str(e)}\n\n"
+                async for chunk in ai_service.chat_with_model(
+                    request.messages, 
+                    request.context or "", 
+                    stream=True
+                ):
+                    yield chunk
             
-            return StreamingResponse(
-                generate_chat_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive"
-                }
+            return await response_manager.streaming(
+                data_generator=generate_chat_stream(),
+                message="AI对话中",
+                operation_type="chat"
             )
         else:
             # 非流式响应
@@ -250,9 +235,15 @@ async def chat(request: ChatRequest):
             return response_manager.success(
                 data={
                     "response": response_content,
-                    "result_id": result_id
+                    "result_id": result_id,
+                    "type": "chat",
+                    "metadata": {
+                        "messages_count": len(request.messages),
+                        "has_context": bool(request.context),
+                        "context_length": len(request.context or "")
+                    }
                 },
-                message="对话响应成功"
+                message="对话响应生成成功"
             )
             
     except VideoChateException:
@@ -264,7 +255,7 @@ async def chat(request: ChatRequest):
         )
 
 
-@router.post("/teaching-evaluation", summary="教学内容评估")
+@router.post("/teaching-evaluation", summary="教学内容评估", response_model=AIProcessResponse)
 async def create_teaching_evaluation(request: AIRequest):
     """
     对教学内容进行AI评估分析
@@ -275,21 +266,15 @@ async def create_teaching_evaluation(request: AIRequest):
         if request.stream:
             # 流式响应
             async def generate_evaluation_stream():
-                try:
-                    async for chunk in ai_service.generate_teaching_evaluation(
-                        request.text, stream=True
-                    ):
-                        yield f"data: {chunk}\n\n"
-                except Exception as e:
-                    yield f"data: [ERROR] {str(e)}\n\n"
+                async for chunk in ai_service.generate_teaching_evaluation(
+                    request.text, stream=True
+                ):
+                    yield chunk
             
-            return StreamingResponse(
-                generate_evaluation_stream(),
-                media_type="text/event-stream",
-                headers={
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive"
-                }
+            return await response_manager.streaming(
+                data_generator=generate_evaluation_stream(),
+                message="教学评估生成中",
+                operation_type="teaching_evaluation"
             )
         else:
             # 非流式响应
@@ -307,7 +292,12 @@ async def create_teaching_evaluation(request: AIRequest):
             return response_manager.success(
                 data={
                     "evaluation": evaluation_content,
-                    "result_id": result_id
+                    "result_id": result_id,
+                    "type": "teaching_evaluation",
+                    "metadata": {
+                        "text_length": len(request.text),
+                        "evaluation_type": "comprehensive"
+                    }
                 },
                 message="教学评估生成成功"
             )
@@ -321,7 +311,7 @@ async def create_teaching_evaluation(request: AIRequest):
         )
 
 
-@router.get("/results/{result_id}", summary="获取AI处理结果")
+@router.get("/results/{result_id}", summary="获取AI处理结果", response_model=AIProcessResponse)
 async def get_ai_result(result_id: str):
     """
     根据结果ID获取AI处理结果
@@ -333,15 +323,22 @@ async def get_ai_result(result_id: str):
         
         if not result:
             return response_manager.error(
-                message="AI处理结果不存在",
-                code=ErrorCodes.NOT_FOUND
+                message=f"未找到结果ID: {result_id}",
+                code=ErrorCodes.NOT_FOUND,
+                status_code=404
             )
         
         return response_manager.success(
-            data=result,
+            data={
+                "result": result,
+                "result_id": result_id,
+                "type": "stored_result"
+            },
             message="AI处理结果获取成功"
         )
         
+    except VideoChateException:
+        raise
     except Exception as e:
         return response_manager.error(
             message=f"获取AI处理结果失败: {str(e)}",
@@ -349,7 +346,7 @@ async def get_ai_result(result_id: str):
         )
 
 
-@router.get("/stats/overview", summary="获取AI服务统计信息")
+@router.get("/stats/overview", summary="获取AI服务统计信息", response_model=AIProcessResponse)
 async def get_ai_stats():
     """
     获取AI服务统计信息
@@ -357,13 +354,18 @@ async def get_ai_stats():
     包括处理次数、类型分布、服务状态等
     """
     try:
-        stats = await ai_service.get_ai_stats()
+        stats = await ai_service.get_service_stats()
         
         return response_manager.success(
-            data=stats,
+            data={
+                "stats": stats,
+                "type": "service_stats"
+            },
             message="AI服务统计信息获取成功"
         )
         
+    except VideoChateException:
+        raise
     except Exception as e:
         return response_manager.error(
             message=f"获取AI服务统计失败: {str(e)}",

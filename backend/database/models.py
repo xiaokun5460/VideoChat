@@ -99,6 +99,11 @@ class FileRecord(Base):
     duration = Column(Float)  # 音视频时长
     format_info = Column(JSON)  # 格式信息
     
+    # 新增字段 - 支持API需求
+    description = Column(Text)  # 文件描述
+    tags = Column(JSON)  # 文件标签列表
+    status = Column(String(20), default="uploaded")  # 文件状态: uploaded, processing, completed, error
+    
     # 处理状态
     is_processed = Column(Boolean, default=False)
     last_accessed = Column(DateTime, default=func.now())

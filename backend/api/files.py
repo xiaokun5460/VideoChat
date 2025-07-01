@@ -1,24 +1,24 @@
 """
 文件管理API路由
 
-基于FileService的文件管理接口
+基于FileService的文件管理接口，统一响应格式
 """
 
 import os
-from typing import List, Optional
+from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Query, Path, Form
 from fastapi.responses import FileResponse
 
 from core.response import response_manager
-from core.models import FileInfo, PaginationParams
-from core.exceptions import VideoChateException, file_not_found
+from core.models import FileInfo, FileUploadResponse, StandardResponse
+from core.exceptions import VideoChateException, ErrorCodes
 from services import file_service
 
 
 router = APIRouter(prefix="/api/files", tags=["文件管理"])
 
 
-@router.post("/upload", summary="上传文件")
+@router.post("/upload", summary="上传文件", response_model=FileUploadResponse)
 async def upload_file(
     file: UploadFile = File(..., description="要上传的文件"),
     description: Optional[str] = Form(None, description="文件描述"),
@@ -48,7 +48,7 @@ async def upload_file(
         
         return response_manager.success(
             data=file_info.model_dump(mode='json'),
-            message="文件上传成功"
+            message=f"文件 '{file.filename}' 上传成功"
         )
         
     except VideoChateException:
@@ -56,11 +56,11 @@ async def upload_file(
     except Exception as e:
         return response_manager.error(
             message=f"文件上传失败: {str(e)}",
-            code="E2004"
+            code=ErrorCodes.UPLOAD_FAILED
         )
 
 
-@router.get("/", summary="获取文件列表")
+@router.get("/", summary="获取文件列表", response_model=StandardResponse)
 async def get_files(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页数量"),
@@ -91,37 +91,42 @@ async def get_files(
         )
         
         return response_manager.paginated(
-            items=files,
+            items=[file.model_dump(mode='json') for file in files],
             total=total,
             page=page,
             page_size=page_size,
             message="文件列表获取成功"
         )
         
+    except VideoChateException:
+        raise
     except Exception as e:
         return response_manager.error(
             message=f"获取文件列表失败: {str(e)}",
-            code="E1005"
+            code=ErrorCodes.INTERNAL_ERROR
         )
 
-
-@router.get("/{file_id}", summary="获取文件详情")
+@router.get("/{file_id}", summary="获取文件详情", response_model=StandardResponse)
 async def get_file_detail(
     file_id: str = Path(..., description="文件ID")
 ):
     """
     获取文件详情
     
-    根据文件ID获取详细信息
+    根据文件ID获取详细的文件信息
     """
     try:
-        file_data = await file_service.get_by_id(file_id)
+        file_info = await file_service.get_file_info(file_id)
         
-        if not file_data:
-            raise file_not_found(file_id)
+        if not file_info:
+            return response_manager.error(
+                message=f"文件不存在: {file_id}",
+                code=ErrorCodes.FILE_NOT_FOUND,
+                status_code=404
+            )
         
         return response_manager.success(
-            data=file_data,
+            data=file_info.model_dump(mode='json'),
             message="文件详情获取成功"
         )
         
@@ -130,11 +135,11 @@ async def get_file_detail(
     except Exception as e:
         return response_manager.error(
             message=f"获取文件详情失败: {str(e)}",
-            code="E1005"
+            code=ErrorCodes.INTERNAL_ERROR
         )
 
 
-@router.put("/{file_id}", summary="更新文件信息")
+@router.put("/{file_id}", summary="更新文件信息", response_model=StandardResponse)
 async def update_file(
     file_id: str = Path(..., description="文件ID"),
     description: Optional[str] = Form(None, description="文件描述"),
@@ -144,27 +149,35 @@ async def update_file(
     """
     更新文件信息
     
-    可以更新文件的描述、标签和状态
+    更新文件的描述、标签或状态
     """
     try:
-        # 构建更新数据
-        update_data = {}
-        
-        if description is not None:
-            update_data["description"] = description
-            
+        # 处理标签
+        tag_list = None
         if tags is not None:
             tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
+        
+        # 构建更新数据
+        update_data = {}
+        if description is not None:
+            update_data["description"] = description
+        if tag_list is not None:
             update_data["tags"] = tag_list
-            
         if status is not None:
             update_data["status"] = status
         
-        # 更新文件
-        updated_file = await file_service.update(file_id, update_data)
+        # 更新文件信息
+        updated_file = await file_service.update_file_info(file_id, update_data)
+        
+        if not updated_file:
+            return response_manager.error(
+                message=f"文件不存在: {file_id}",
+                code=ErrorCodes.FILE_NOT_FOUND,
+                status_code=404
+            )
         
         return response_manager.success(
-            data=updated_file,
+            data=updated_file.model_dump(mode='json'),
             message="文件信息更新成功"
         )
         
@@ -173,26 +186,31 @@ async def update_file(
     except Exception as e:
         return response_manager.error(
             message=f"更新文件信息失败: {str(e)}",
-            code="E1005"
+            code=ErrorCodes.INTERNAL_ERROR
         )
 
 
-@router.delete("/{file_id}", summary="删除文件")
+@router.delete("/{file_id}", summary="删除文件", response_model=StandardResponse)
 async def delete_file(
     file_id: str = Path(..., description="文件ID")
 ):
     """
     删除文件
     
-    删除文件及其相关数据
+    删除指定的文件及其相关数据
     """
     try:
-        success = await file_service.delete(file_id)
+        success = await file_service.delete_file(file_id)
         
         if not success:
-            raise file_not_found(file_id)
+            return response_manager.error(
+                message=f"文件不存在: {file_id}",
+                code=ErrorCodes.FILE_NOT_FOUND,
+                status_code=404
+            )
         
         return response_manager.success(
+            data={"file_id": file_id, "deleted": True},
             message="文件删除成功"
         )
         
@@ -201,7 +219,7 @@ async def delete_file(
     except Exception as e:
         return response_manager.error(
             message=f"删除文件失败: {str(e)}",
-            code="E1005"
+            code=ErrorCodes.INTERNAL_ERROR
         )
 
 
@@ -212,17 +230,21 @@ async def download_file(
     """
     下载文件
     
-    返回文件的二进制内容
+    根据文件ID下载原始文件
     """
     try:
         file_path = await file_service.get_file_path(file_id)
         
         if not file_path or not os.path.exists(file_path):
-            raise file_not_found(file_id)
+            return response_manager.error(
+                message=f"文件不存在: {file_id}",
+                code=ErrorCodes.FILE_NOT_FOUND,
+                status_code=404
+            )
         
         # 获取文件信息用于设置下载文件名
-        file_data = await file_service.get_by_id(file_id)
-        filename = file_data["name"] if file_data else os.path.basename(file_path)
+        file_info = await file_service.get_file_info(file_id)
+        filename = file_info.name if file_info else f"file_{file_id}"
         
         return FileResponse(
             path=file_path,
@@ -235,11 +257,11 @@ async def download_file(
     except Exception as e:
         return response_manager.error(
             message=f"下载文件失败: {str(e)}",
-            code="E2001"
+            code=ErrorCodes.FILE_NOT_FOUND
         )
 
 
-@router.get("/stats/overview", summary="获取文件统计信息")
+@router.get("/stats/overview", summary="获取文件统计信息", response_model=StandardResponse)
 async def get_file_stats():
     """
     获取文件统计信息
@@ -250,12 +272,17 @@ async def get_file_stats():
         stats = await file_service.get_file_stats()
         
         return response_manager.success(
-            data=stats,
+            data={
+                "stats": stats,
+                "type": "file_stats"
+            },
             message="文件统计信息获取成功"
         )
         
+    except VideoChateException:
+        raise
     except Exception as e:
         return response_manager.error(
             message=f"获取文件统计失败: {str(e)}",
-            code="E1005"
+            code=ErrorCodes.INTERNAL_ERROR
         )

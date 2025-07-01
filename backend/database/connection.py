@@ -10,7 +10,7 @@ from typing import Optional
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
-from config import AI_CONFIG, STT_CONFIG, DOWNLOAD_CONFIG
+# 移除不存在的配置导入
 
 
 class DatabaseManager:
@@ -37,10 +37,14 @@ class DatabaseManager:
         
         if database_url is None:
             # 使用项目根目录下的data文件夹
-            db_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+            # __file__ 是 backend/database/connection.py
+            # 需要向上两级到达项目根目录
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            db_dir = os.path.join(project_root, "data")
             os.makedirs(db_dir, exist_ok=True)
             db_path = os.path.join(db_dir, "videochat.db")
             database_url = f"sqlite:///{db_path}"
+            logging.info(f"数据库路径: {db_path}")
         
         # 创建引擎
         self._engine = create_engine(

@@ -4,13 +4,14 @@
 处理异步任务的创建、执行、监控等功能
 """
 
+import os
 import uuid
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, AsyncGenerator
 
 from .base import BaseService
-from core.models import TaskStatus, TaskType
+from core.models import TaskStatus, TaskType, TaskInfo
 from core.exceptions import task_not_found, TaskException, ErrorCodes
 
 
@@ -29,7 +30,7 @@ class TaskService(BaseService):
         task_type: TaskType,
         file_id: Optional[str] = None,
         parameters: Optional[Dict[str, Any]] = None
-    ) -> str:
+    ) -> TaskInfo:
         """
         创建任务
         
@@ -41,11 +42,15 @@ class TaskService(BaseService):
         Returns:
             str: 任务ID
         """
-        return await self.async_safe_execute(
+        task_id = await self.async_safe_execute(
             "创建任务",
             self._create_task_impl,
             task_type, file_id, parameters
         )
+        
+        # 返回TaskInfo模型
+        task_data = self._tasks_db.get(task_id)
+        return TaskInfo(**task_data)
     
     async def _create_task_impl(
         self, 
@@ -190,28 +195,164 @@ class TaskService(BaseService):
     
     async def _execute_ai_task(self, task_id: str):
         """执行AI处理任务"""
-        await self._update_task_progress(task_id, 20, "AI模型加载中")
-        await asyncio.sleep(2)
+        from services import ai_service
         
-        await self._update_task_progress(task_id, 50, "AI分析中")
-        await asyncio.sleep(3)
+        task_data = self._tasks_db.get(task_id)
+        if not task_data:
+            raise task_not_found(task_id)
         
-        await self._update_task_progress(task_id, 80, "生成结果中")
-        await asyncio.sleep(2)
-        
-        await self._update_task_progress(task_id, 100, "AI处理完成")
+        try:
+            # 获取任务参数
+            ai_type = task_data["metadata"].get("ai_type", "summary")
+            text_content = task_data["metadata"].get("text", "")
+            parameters = task_data["metadata"].get("parameters", {})
+            
+            await self._update_task_progress(task_id, 20, "AI模型加载中")
+            
+            # 根据AI类型执行不同的处理
+            result = None
+            if ai_type == "summary":
+                await self._update_task_progress(task_id, 40, "生成总结中")
+                max_length = parameters.get("max_length", 200)
+                
+                # 调用AI服务生成总结
+                summary_content = ""
+                async for chunk in ai_service.generate_summary(text_content, stream=False, max_length=max_length):
+                    summary_content += chunk
+                
+                result = {
+                    "type": "summary",
+                    "content": summary_content,
+                    "parameters": {"max_length": max_length}
+                }
+                
+            elif ai_type == "detailed_summary":
+                await self._update_task_progress(task_id, 40, "生成详细总结中")
+                
+                # 调用AI服务生成详细总结
+                summary_content = ""
+                async for chunk in ai_service.generate_detailed_summary(text_content, stream=False):
+                    summary_content += chunk
+                
+                result = {
+                    "type": "detailed_summary",
+                    "content": summary_content
+                }
+                
+            elif ai_type == "mindmap":
+                await self._update_task_progress(task_id, 40, "生成思维导图中")
+                
+                # 调用AI服务生成思维导图
+                mindmap_content = ""
+                async for chunk in ai_service.generate_mindmap(text_content, stream=False):
+                    mindmap_content += chunk
+                
+                result = {
+                    "type": "mindmap",
+                    "content": mindmap_content
+                }
+                
+            elif ai_type == "teaching_evaluation":
+                await self._update_task_progress(task_id, 40, "生成教学评估中")
+                
+                # 调用AI服务生成教学评估
+                evaluation_content = ""
+                async for chunk in ai_service.generate_teaching_evaluation(text_content, stream=False):
+                    evaluation_content += chunk
+                
+                result = {
+                    "type": "teaching_evaluation",
+                    "content": evaluation_content
+                }
+            
+            await self._update_task_progress(task_id, 80, "保存结果中")
+            
+            # 保存AI结果
+            if result:
+                result_id = await ai_service.save_ai_result(
+                    ai_type, result["content"], parameters
+                )
+                result["result_id"] = result_id
+            
+            # 更新任务结果
+            task_data["result"] = result
+            task_data["metadata"]["result_id"] = result.get("result_id") if result else None
+            
+            await self._update_task_progress(task_id, 100, "AI处理完成")
+            
+        except Exception as e:
+            self.log_error(f"AI任务执行失败: {task_id}", exception=e)
+            raise
     
     async def _execute_download_task(self, task_id: str):
         """执行下载任务"""
-        await self._update_task_progress(task_id, 10, "开始下载")
+        import aiohttp
+        import aiofiles
+        from services import file_service
         
-        # 模拟下载进度
-        for i in range(1, 10):
-            await asyncio.sleep(0.5)
-            progress = 10 + i * 9
-            await self._update_task_progress(task_id, progress, f"下载中 {progress}%")
+        task_data = self._tasks_db.get(task_id)
+        if not task_data:
+            raise task_not_found(task_id)
         
-        await self._update_task_progress(task_id, 100, "下载完成")
+        try:
+            # 获取下载参数
+            url = task_data["metadata"].get("url")
+            filename = task_data["metadata"].get("filename")
+            
+            if not url:
+                raise ValueError("下载URL不能为空")
+            
+            await self._update_task_progress(task_id, 10, "开始下载")
+            
+            # 执行实际下载
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        raise ValueError(f"下载失败，HTTP状态码: {response.status}")
+                    
+                    total_size = int(response.headers.get('content-length', 0))
+                    downloaded = 0
+                    
+                    # 生成文件路径
+                    if not filename:
+                        filename = url.split('/')[-1] or "downloaded_file"
+                    
+                    file_path = os.path.join(self.settings.upload_dir, filename)
+                    
+                    # 下载文件
+                    async with aiofiles.open(file_path, 'wb') as file:
+                        async for chunk in response.content.iter_chunked(8192):
+                            await file.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            if total_size > 0:
+                                progress = 10 + int((downloaded / total_size) * 80)
+                                await self._update_task_progress(task_id, progress, f"下载中 {progress}%")
+            
+            await self._update_task_progress(task_id, 90, "创建文件记录")
+            
+            # 创建文件记录
+            file_info = await file_service.upload_file_from_path(
+                file_path=file_path,
+                filename=filename,
+                description=f"从 {url} 下载"
+            )
+            
+            # 更新任务结果
+            task_data["result"] = {
+                "type": "download",
+                "file_id": file_info.id,
+                "file_path": file_path,
+                "filename": filename,
+                "url": url,
+                "size": os.path.getsize(file_path) if os.path.exists(file_path) else 0
+            }
+            
+            await self._update_task_progress(task_id, 100, "下载完成")
+            
+        except Exception as e:
+            self.log_error(f"下载任务执行失败: {task_id}", exception=e)
+            raise
     
     async def _execute_export_task(self, task_id: str):
         """执行导出任务"""
@@ -272,12 +413,12 @@ class TaskService(BaseService):
             task_id = queued_tasks[0][0]
             await self._start_task_execution(task_id)
     
-    async def get_task_status(self, task_id: str) -> Dict[str, Any]:
+    async def get_task_status(self, task_id: str) -> TaskInfo:
         """获取任务状态"""
         task_data = self._tasks_db.get(task_id)
         if not task_data:
             raise task_not_found(task_id)
-        return task_data
+        return TaskInfo(**task_data)
     
     async def cancel_task(self, task_id: str) -> bool:
         """取消任务"""
@@ -420,3 +561,91 @@ class TaskService(BaseService):
                 break
             
             await asyncio.sleep(1)  # 每秒检查一次
+    
+    async def get_task_info(self, task_id: str) -> Optional[TaskInfo]:
+        """获取任务信息"""
+        try:
+            return await self.get_task_status(task_id)
+        except:
+            return None
+    
+    async def get_task_progress(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """获取任务进度"""
+        task_data = self._tasks_db.get(task_id)
+        if not task_data:
+            return None
+        
+        return {
+            "task_id": task_id,
+            "progress": task_data["progress"],
+            "status": task_data["status"],
+            "current_step": task_data["current_step"],
+            "total_steps": task_data["total_steps"],
+            "current_step_index": task_data["current_step_index"],
+            "speed": task_data.get("speed"),
+            "eta": task_data.get("eta"),
+            "error_message": task_data.get("error_message")
+        }
+    
+    async def get_task_progress_stream(self, task_id: str):
+        """获取任务进度流"""
+        while True:
+            progress_data = await self.get_task_progress(task_id)
+            if not progress_data:
+                break
+            
+            yield progress_data
+            
+            # 如果任务完成或失败，停止流
+            if progress_data["status"] in [TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value]:
+                break
+            
+            await asyncio.sleep(1)  # 每秒更新一次
+    
+    async def get_task_stats(self) -> Dict[str, Any]:
+        """获取任务统计信息"""
+        all_tasks = list(self._tasks_db.values())
+        
+        stats = {
+            "total": len(all_tasks),
+            "by_status": {},
+            "by_type": {},
+            "performance": {
+                "running_tasks": self._running_tasks,
+                "max_concurrent": self._max_concurrent_tasks,
+                "queue_length": len([t for t in all_tasks if t["status"] == TaskStatus.QUEUED.value])
+            }
+        }
+        
+        # 按状态统计
+        for status in TaskStatus:
+            count = len([t for t in all_tasks if t["status"] == status.value])
+            stats["by_status"][status.value] = count
+        
+        # 按类型统计
+        for task_type in TaskType:
+            count = len([t for t in all_tasks if t["task_type"] == task_type.value])
+            stats["by_type"][task_type.value] = count
+        
+        return stats
+    
+    async def cleanup_completed_tasks(self, older_than_days: int) -> int:
+        """清理已完成的任务"""
+        cutoff_time = datetime.now() - timedelta(days=older_than_days)
+        cutoff_iso = cutoff_time.isoformat()
+        
+        cleaned_count = 0
+        tasks_to_remove = []
+        
+        for task_id, task_data in self._tasks_db.items():
+            if (task_data["status"] == TaskStatus.COMPLETED.value and 
+                task_data.get("completed_at") and 
+                task_data["completed_at"] < cutoff_iso):
+                tasks_to_remove.append(task_id)
+        
+        for task_id in tasks_to_remove:
+            del self._tasks_db[task_id]
+            cleaned_count += 1
+        
+        self.log_info(f"清理了 {cleaned_count} 个已完成任务")
+        return cleaned_count

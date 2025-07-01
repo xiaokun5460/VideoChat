@@ -1,7 +1,7 @@
 """
-新API路由模块
+API模块
 
-基于重构后的Service架构创建的规范化API路由
+统一的API路由管理，所有接口都使用统一的响应格式
 """
 
 from .files import router as files_router
@@ -12,8 +12,8 @@ from .system import router as system_router
 
 __all__ = [
     "files_router",
-    "tasks_router",
-    "transcriptions_router", 
+    "tasks_router", 
+    "transcriptions_router",
     "ai_router",
     "system_router"
 ]

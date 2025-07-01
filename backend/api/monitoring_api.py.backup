@@ -80,7 +80,8 @@ async def _check_database_health() -> Dict[str, Any]:
         
         with get_database() as session:
             # 执行简单查询测试连接
-            session.execute("SELECT 1")
+            from sqlalchemy import text
+            session.execute(text("SELECT 1"))
             return {"status": "healthy", "message": "数据库连接正常"}
     
     except ImportError:

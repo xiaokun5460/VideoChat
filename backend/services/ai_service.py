@@ -305,3 +305,33 @@ class AIService(BaseService):
             stats["by_type"][result_type] = stats["by_type"].get(result_type, 0) + 1
         
         return stats
+    
+    async def test_connection(self) -> bool:
+        """测试AI服务连接"""
+        try:
+            # 简单的连接测试
+            if not self.openai_client:
+                return False
+            
+            # 尝试一个简单的API调用
+            test_messages = [{"role": "user", "content": "test"}]
+            
+            # 使用较短的超时时间进行测试
+            response = await asyncio.wait_for(
+                self.openai_client.chat.completions.create(
+                    model=self.model_name,
+                    messages=test_messages,
+                    max_tokens=1,
+                    temperature=0
+                ),
+                timeout=5.0  # 5秒超时
+            )
+            
+            return response is not None
+            
+        except asyncio.TimeoutError:
+            self.log_warning("AI服务连接测试超时")
+            return False
+        except Exception as e:
+            self.log_warning(f"AI服务连接测试失败: {str(e)}")
+            return False

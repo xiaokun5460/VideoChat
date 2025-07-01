@@ -44,11 +44,11 @@ class FileService(CRUDService):
             "size": file_record.file_size,
             "type": file_record.mime_type or "application/octet-stream",
             "hash": file_record.file_hash,
-            "status": FileStatus.UPLOADED.value,
+            "status": file_record.status or FileStatus.UPLOADED.value,
             "upload_time": file_record.created_at.isoformat(),
             "url": f"/uploads/{os.path.basename(file_record.file_path)}",
-            "description": "",  # 暂时为空，后续可以扩展
-            "tags": []  # 暂时为空，后续可以扩展
+            "description": file_record.description or "",
+            "tags": file_record.tags or []
         }
     
     async def upload_file(self, file: UploadFile, description: Optional[str] = None, tags: Optional[List[str]] = None) -> FileInfo:
@@ -137,23 +137,28 @@ class FileService(CRUDService):
                 os.remove(file_path)
             raise FileException(f"文件保存失败: {str(e)}", ErrorCodes.UPLOAD_FAILED)
     
-    async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def create(self, data: Dict[str, Any]) -> FileInfo:
         """创建文件记录（用于CRUD接口）"""
         # 这个方法主要用于直接创建文件记录，而不是上传
         file_id = str(uuid.uuid4())
-        # 创建数据库记录
+        
+        # 创建数据库记录，包含新字段
         file_record = FileDAO.create_file_record(
             file_path=data.get("url", ""),
             file_name=data.get("name", ""),
             file_size=data.get("size", 0),
             file_hash=data.get("hash", ""),
-            mime_type=data.get("type", "application/octet-stream")
+            mime_type=data.get("type", "application/octet-stream"),
+            description=data.get("description"),
+            tags=data.get("tags", []),
+            status=data.get("status", "uploaded")
         )
 
-        # 转换为字典格式返回
-        return self._file_record_to_dict(file_record, file_id)
+        # 转换为FileInfo模型返回
+        file_dict = self._file_record_to_dict(file_record, file_id)
+        return FileInfo(**file_dict)
     
-    async def get_by_id(self, file_id: str) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, file_id: str) -> Optional[FileInfo]:
         """根据ID获取文件信息"""
         # 通过映射获取文件路径
         file_path = self._file_id_to_path.get(file_id)
@@ -165,14 +170,16 @@ class FileService(CRUDService):
         if not file_record:
             return None
 
-        return self._file_record_to_dict(file_record, file_id)
+        # 转换为FileInfo模型
+        file_dict = self._file_record_to_dict(file_record, file_id)
+        return FileInfo(**file_dict)
     
     async def get_list(
         self, 
         page: int = 1, 
         page_size: int = 20, 
         filters: Optional[Dict[str, Any]] = None
-    ) -> tuple[List[Dict[str, Any]], int]:
+    ) -> tuple[List[FileInfo], int]:
         """获取文件列表"""
         with get_db_session() as session:
             # 构建查询
@@ -193,7 +200,7 @@ class FileService(CRUDService):
             offset = (page - 1) * page_size
             file_records = query.offset(offset).limit(page_size).all()
 
-            # 转换为字典格式
+            # 转换为FileInfo模型列表
             result_files = []
             for record in file_records:
                 # 尝试从映射中找到file_id
@@ -208,7 +215,7 @@ class FileService(CRUDService):
 
                 file_dict = self._file_record_to_dict(record, file_id)
                 if file_dict:
-                    result_files.append(file_dict)
+                    result_files.append(FileInfo(**file_dict))
 
             return result_files, total
     
@@ -219,13 +226,19 @@ class FileService(CRUDService):
         if not file_path:
             raise file_not_found(file_id)
 
-        # 从数据库获取文件记录
-        file_record = FileDAO.get_file_by_path(file_path)
-        if not file_record:
+        # 更新数据库记录
+        success = FileDAO.update_file_record(
+            file_path=file_path,
+            description=data.get("description"),
+            tags=data.get("tags"),
+            status=data.get("status")
+        )
+        
+        if not success:
             raise file_not_found(file_id)
 
-        # 注意：当前FileRecord模型不支持description和tags字段
-        # 这里只是返回当前的文件信息，实际更新需要扩展数据库模型
+        # 获取更新后的记录
+        file_record = FileDAO.get_file_by_path(file_path)
         return self._file_record_to_dict(file_record, file_id)
     
     async def delete(self, file_id: str) -> bool:
@@ -278,18 +291,118 @@ class FileService(CRUDService):
         if not file_path:
             return False
 
-        # 注意：当前FileRecord模型不支持status字段
-        # 这里只是记录日志，实际更新需要扩展数据库模型
-        self.log_info(f"文件状态更新: {file_id} -> {status}")
-        return True
+        # 使用FileDAO更新状态
+        success = FileDAO.update_file_record(
+            file_path=file_path,
+            status=status.value
+        )
+        
+        if success:
+            self.log_info(f"文件状态更新成功: {file_id} -> {status}")
+        
+        return success
     
     async def get_files_by_status(self, status: FileStatus) -> List[Dict[str, Any]]:
         """根据状态获取文件列表"""
-        # 注意：当前FileRecord模型不支持status字段
-        # 这里返回空列表，实际实现需要扩展数据库模型
-        return []
+        # 使用FileDAO获取指定状态的文件
+        file_records = FileDAO.get_files_by_status(status.value)
+        
+        result = []
+        for record in file_records:
+            # 尝试从映射中找到file_id
+            file_id = None
+            for fid, path in self._file_id_to_path.items():
+                if path == record.file_path:
+                    file_id = fid
+                    break
+            
+            if not file_id:
+                file_id = str(record.id)  # 使用数据库ID作为fallback
+            
+            file_dict = self._file_record_to_dict(record, file_id)
+            if file_dict:
+                result.append(file_dict)
+        
+        return result
     
     async def get_file_stats(self) -> Dict[str, Any]:
         """获取文件统计信息"""
         # 使用FileDAO获取统计信息
         return FileDAO.get_file_statistics()
+    
+    async def get_file_info(self, file_id: str) -> Optional[FileInfo]:
+        """获取文件信息（别名方法）"""
+        return await self.get_by_id(file_id)
+    
+    async def update_file_info(self, file_id: str, update_data: Dict[str, Any]) -> Optional[FileInfo]:
+        """更新文件信息并返回FileInfo模型"""
+        updated_dict = await self.update(file_id, update_data)
+        if updated_dict:
+            return FileInfo(**updated_dict)
+        return None
+    
+    async def delete_file(self, file_id: str) -> bool:
+        """删除文件"""
+        return await self.delete(file_id)
+    
+    async def get_file_path(self, file_id: str) -> Optional[str]:
+        """获取文件路径"""
+        return self._file_id_to_path.get(file_id)    
+    async def upload_file_from_path(
+        self, 
+        file_path: str, 
+        filename: str, 
+        description: Optional[str] = None,
+        tags: Optional[List[str]] = None
+    ) -> FileInfo:
+        """从文件路径创建文件记录"""
+        try:
+            if not os.path.exists(file_path):
+                raise FileException(f"文件不存在: {file_path}", ErrorCodes.FILE_NOT_FOUND)
+            
+            # 获取文件信息
+            file_size = os.path.getsize(file_path)
+            file_hash = FileDAO.calculate_file_hash(file_path)
+            
+            # 检测MIME类型
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(file_path)
+            
+            # 生成文件ID
+            file_id = self._generate_file_id()
+            
+            # 保存文件路径映射
+            self._file_id_to_path[file_id] = file_path
+            
+            # 创建数据库记录
+            file_record = FileDAO.create_file_record(
+                file_path=file_path,
+                file_name=filename,
+                file_size=file_size,
+                file_hash=file_hash,
+                mime_type=mime_type,
+                description=description,
+                tags=tags or [],
+                status="uploaded"
+            )
+            
+            # 创建FileInfo对象
+            file_info = FileInfo(
+                id=file_id,
+                name=filename,
+                size=file_size,
+                type=mime_type or "application/octet-stream",
+                hash=file_hash,
+                status=FileStatus.UPLOADED,
+                upload_time=datetime.now().isoformat(),
+                url=f"/uploads/{os.path.basename(file_path)}",
+                description=description,
+                tags=tags or []
+            )
+            
+            self.log_info(f"文件记录创建成功: {filename}", file_id=file_id, size=file_size)
+            return file_info
+            
+        except Exception as e:
+            self.log_error("从路径创建文件记录失败", exception=e)
+            raise FileException(f"创建文件记录失败: {str(e)}", ErrorCodes.INTERNAL_ERROR)

@@ -10,7 +10,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func
+from sqlalchemy import and_, or_, desc, func
 from database.models import FileRecord
 from database.connection import get_db_session
 
@@ -39,7 +39,10 @@ class FileDAO:
         file_hash: str = None,
         mime_type: str = None,
         duration: float = None,
-        format_info: Dict = None
+        format_info: Dict = None,
+        description: str = None,
+        tags: List[str] = None,
+        status: str = "uploaded"
     ) -> FileRecord:
         """创建文件记录"""
         if file_hash is None:
@@ -65,7 +68,10 @@ class FileDAO:
                 file_hash=file_hash,
                 mime_type=mime_type,
                 duration=duration,
-                format_info=format_info or {}
+                format_info=format_info or {},
+                description=description,
+                tags=tags or [],
+                status=status
             )
             session.add(file_record)
             session.commit()
@@ -174,3 +180,95 @@ class FileDAO:
                     } for f in recent_files
                 ]
             }
+    
+    @staticmethod
+    def update_file_record(
+        file_path: str,
+        description: str = None,
+        tags: List[str] = None,
+        status: str = None
+    ) -> bool:
+        """更新文件记录"""
+        with get_db_session() as session:
+            file_record = session.query(FileRecord).filter(
+                FileRecord.file_path == file_path
+            ).first()
+            
+            if not file_record:
+                return False
+            
+            # 更新字段
+            if description is not None:
+                file_record.description = description
+            if tags is not None:
+                file_record.tags = tags
+            if status is not None:
+                file_record.status = status
+            
+            file_record.last_accessed = datetime.now()
+            session.commit()
+            return True
+    
+    @staticmethod
+    def get_files_by_status(status: str, limit: int = 100) -> List[FileRecord]:
+        """根据状态获取文件列表"""
+        with get_db_session() as session:
+            return session.query(FileRecord).filter(
+                FileRecord.status == status
+            ).order_by(FileRecord.created_at.desc()).limit(limit).all()
+    
+    @staticmethod
+    def search_files(
+        search_term: str = None,
+        file_type: str = None,
+        status: str = None,
+        tags: List[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> tuple[List[FileRecord], int]:
+        """搜索文件"""
+        with get_db_session() as session:
+            query = session.query(FileRecord)
+            
+            # 搜索条件
+            if search_term:
+                query = query.filter(
+                    or_(
+                        FileRecord.file_name.contains(search_term),
+                        FileRecord.description.contains(search_term)
+                    )
+                )
+            
+            if file_type:
+                query = query.filter(FileRecord.mime_type.contains(file_type))
+            
+            if status:
+                query = query.filter(FileRecord.status == status)
+            
+            if tags:
+                # JSON字段查询，检查是否包含指定标签
+                for tag in tags:
+                    query = query.filter(FileRecord.tags.contains(f'"{tag}"'))
+            
+            # 总数
+            total = query.count()
+            
+            # 分页
+            offset = (page - 1) * page_size
+            files = query.order_by(FileRecord.created_at.desc()).offset(offset).limit(page_size).all()
+            
+            return files, total
+    
+    @staticmethod
+    def delete_file_record(file_path: str) -> bool:
+        """删除文件记录"""
+        with get_db_session() as session:
+            file_record = session.query(FileRecord).filter(
+                FileRecord.file_path == file_path
+            ).first()
+            
+            if file_record:
+                session.delete(file_record)
+                session.commit()
+                return True
+            return False

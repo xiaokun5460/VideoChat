@@ -63,16 +63,27 @@ class Settings(BaseModel):
     
     class Config:
         """Pydantic配置"""
-        env_file = ".env"
+        env_file = [".env", "backend/.env"]  # 支持多个可能的路径
         env_file_encoding = "utf-8"
         case_sensitive = False
 
 
 def _load_from_env():
     """从环境变量加载配置"""
-    # 尝试加载.env文件
-    env_file = ".env"
-    if os.path.exists(env_file):
+    # 尝试加载.env文件，支持多个可能的路径
+    possible_env_files = [
+        ".env",  # 当前目录
+        "backend/.env",  # backend目录
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"),  # backend目录（相对路径）
+    ]
+    
+    env_file = None
+    for file_path in possible_env_files:
+        if os.path.exists(file_path):
+            env_file = file_path
+            break
+    
+    if env_file:
         with open(env_file, 'r', encoding='utf-8') as f:
             for line in f:
                 line = line.strip()

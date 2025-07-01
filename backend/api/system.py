@@ -1,225 +1,148 @@
 """
 系统管理API路由
 
-系统健康检查、监控、配置管理等功能
+系统健康检查、监控、配置管理接口，统一响应格式
 """
 
-from datetime import datetime
 from fastapi import APIRouter
 
 from core.response import response_manager
+from core.models import SystemStatus, StandardResponse
+from core.exceptions import VideoChateException, ErrorCodes
 from core.config import settings
-from core.exceptions import ErrorCodes
-from services import file_service, task_service, transcription_service, ai_service
+from services import system_service
 
 
 router = APIRouter(prefix="/api/system", tags=["系统管理"])
 
 
-@router.get("/health", summary="系统健康检查")
+@router.get("/health", summary="系统健康检查", response_model=StandardResponse)
 async def health_check():
     """
-    检查系统和各服务的健康状态
+    系统健康检查
     
-    返回系统整体状态和各个服务的详细状态
+    检查系统各组件的运行状态
     """
     try:
-        services_status = {}
-        
-        # 检查文件服务
-        try:
-            file_stats = await file_service.get_file_stats()
-            services_status["file_service"] = {
-                "status": "healthy",
-                "details": file_stats
-            }
-        except Exception as e:
-            services_status["file_service"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # 检查任务服务
-        try:
-            task_stats = await task_service.get_task_stats()
-            services_status["task_service"] = {
-                "status": "healthy",
-                "details": task_stats
-            }
-        except Exception as e:
-            services_status["task_service"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # 检查转录服务
-        try:
-            transcription_stats = await transcription_service.get_transcription_stats()
-            services_status["transcription_service"] = {
-                "status": "healthy",
-                "details": transcription_stats
-            }
-        except Exception as e:
-            services_status["transcription_service"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # 检查AI服务
-        try:
-            ai_stats = await ai_service.get_ai_stats()
-            services_status["ai_service"] = {
-                "status": "healthy" if ai_stats.get("client_available") else "degraded",
-                "details": ai_stats
-            }
-        except Exception as e:
-            services_status["ai_service"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # 判断整体状态
-        overall_status = "healthy"
-        for service, status in services_status.items():
-            if status["status"] == "error":
-                overall_status = "degraded"
-                break
-            elif status["status"] == "degraded" and overall_status == "healthy":
-                overall_status = "degraded"
+        health_status = await system_service.get_health_status()
         
         return response_manager.success(
-            data={
-                "status": overall_status,
-                "services": services_status,
-                "timestamp": datetime.now().isoformat(),
-                "version": settings.app_version
-            },
-            message="健康检查完成"
+            data=health_status,
+            message="系统健康检查完成"
         )
         
     except Exception as e:
         return response_manager.error(
             message=f"健康检查失败: {str(e)}",
             code=ErrorCodes.INTERNAL_ERROR,
-            status_code=500
+            status_code=503
         )
 
 
-@router.get("/stats", summary="系统统计信息")
-async def get_system_stats():
+@router.get("/status", summary="获取系统状态", response_model=StandardResponse)
+async def get_system_status():
     """
-    获取系统运行统计信息
+    获取详细的系统状态信息
     
-    包括各服务的详细统计数据
+    包括服务状态、资源使用情况、性能指标等
     """
     try:
-        stats = {}
-        
-        # 获取文件服务统计
-        try:
-            stats["files"] = await file_service.get_file_stats()
-        except Exception as e:
-            stats["files"] = {"error": str(e)}
-        
-        # 获取任务服务统计
-        try:
-            stats["tasks"] = await task_service.get_task_stats()
-        except Exception as e:
-            stats["tasks"] = {"error": str(e)}
-        
-        # 获取转录服务统计
-        try:
-            stats["transcriptions"] = await transcription_service.get_transcription_stats()
-        except Exception as e:
-            stats["transcriptions"] = {"error": str(e)}
-        
-        # 获取AI服务统计
-        try:
-            stats["ai"] = await ai_service.get_ai_stats()
-        except Exception as e:
-            stats["ai"] = {"error": str(e)}
+        system_status = await system_service.get_system_status()
         
         return response_manager.success(
-            data=stats,
-            message="系统统计信息获取成功"
+            data=system_status.model_dump(mode='json'),
+            message="系统状态获取成功"
         )
         
+    except VideoChateException:
+        raise
     except Exception as e:
         return response_manager.error(
-            message=f"获取系统统计失败: {str(e)}",
+            message=f"获取系统状态失败: {str(e)}",
             code=ErrorCodes.INTERNAL_ERROR
         )
 
 
-@router.post("/optimize", summary="系统优化")
-async def optimize_system():
+@router.get("/info", summary="获取系统信息", response_model=StandardResponse)
+async def get_system_info():
     """
-    执行系统优化操作
+    获取系统基本信息
     
-    清理过期数据、优化性能等
+    包括版本、配置、环境信息等
     """
     try:
-        optimization_results = {}
-        
-        # 清理过期任务
-        try:
-            cleaned_count = await task_service.cleanup_completed_tasks(days=7)
-            optimization_results["task_cleanup"] = {
-                "status": "success",
-                "cleaned_count": cleaned_count
-            }
-        except Exception as e:
-            optimization_results["task_cleanup"] = {
-                "status": "error",
-                "error": str(e)
-            }
-        
-        # 可以添加更多优化操作
-        # 例如：清理临时文件、压缩日志、优化数据库等
-        
-        return response_manager.success(
-            data=optimization_results,
-            message="系统优化完成"
-        )
-        
-    except Exception as e:
-        return response_manager.error(
-            message=f"系统优化失败: {str(e)}",
-            code=ErrorCodes.INTERNAL_ERROR
-        )
-
-
-@router.get("/config", summary="获取系统配置")
-async def get_system_config():
-    """
-    获取当前系统配置信息
-    
-    返回系统的主要配置参数（敏感信息已脱敏）
-    """
-    try:
-        config = {
+        system_info = {
             "app_name": settings.app_name,
             "app_version": settings.app_version,
-            "debug": settings.debug,
-            "max_file_size": f"{settings.max_file_size // (1024 * 1024)}MB",
-            "allowed_file_types": settings.allowed_file_types,
-            "ai_model_name": settings.ai_model_name,
-            "whisper_model": settings.whisper_model,
-            "use_gpu": settings.use_gpu,
-            "max_concurrent_tasks": settings.max_concurrent_tasks,
-            "task_timeout": f"{settings.task_timeout}s",
-            "cache_ttl": f"{settings.cache_ttl}s",
+            "environment": "development" if settings.debug else "production",
+            "python_version": "3.11+",
+            "api_version": "v1",
             "features": {
-                "ai_service": bool(settings.openai_api_key),
-                "gpu_acceleration": settings.use_gpu,
-                "streaming_response": True,
-                "task_management": True,
-                "file_management": True
+                "file_upload": True,
+                "audio_transcription": True,
+                "ai_processing": True,
+                "streaming_responses": True,
+                "task_management": True
+            },
+            "limits": {
+                "max_file_size": f"{settings.max_file_size // (1024 * 1024)}MB",
+                "max_concurrent_tasks": settings.max_concurrent_tasks,
+                "supported_file_types": settings.allowed_file_types
             }
         }
         
         return response_manager.success(
-            data=config,
+            data=system_info,
+            message="系统信息获取成功"
+        )
+        
+    except Exception as e:
+        return response_manager.error(
+            message=f"获取系统信息失败: {str(e)}",
+            code=ErrorCodes.INTERNAL_ERROR
+        )
+
+
+@router.get("/config", summary="获取系统配置", response_model=StandardResponse)
+async def get_system_config():
+    """
+    获取系统配置信息
+    
+    返回当前系统的配置参数（敏感信息已脱敏）
+    """
+    try:
+        config_info = {
+            "server": {
+                "host": settings.host,
+                "port": settings.port,
+                "debug": settings.debug,
+                "log_level": settings.log_level
+            },
+            "file_handling": {
+                "upload_dir": settings.upload_dir,
+                "max_file_size": settings.max_file_size,
+                "allowed_file_types": settings.allowed_file_types
+            },
+            "ai_service": {
+                "model_name": settings.ai_model_name,
+                "api_configured": bool(settings.openai_api_key)
+            },
+            "transcription": {
+                "whisper_model": settings.whisper_model,
+                "use_gpu": settings.use_gpu
+            },
+            "task_management": {
+                "max_concurrent_tasks": settings.max_concurrent_tasks,
+                "task_timeout": settings.task_timeout
+            },
+            "cache": {
+                "ttl": settings.cache_ttl,
+                "max_size": settings.cache_max_size
+            }
+        }
+        
+        return response_manager.success(
+            data=config_info,
             message="系统配置获取成功"
         )
         
@@ -230,7 +153,34 @@ async def get_system_config():
         )
 
 
-@router.get("/version", summary="获取版本信息")
+@router.get("/stats", summary="获取系统统计信息", response_model=StandardResponse)
+async def get_system_stats():
+    """
+    获取系统统计信息
+    
+    包括使用统计、性能指标、资源使用情况等
+    """
+    try:
+        stats = await system_service.get_system_stats()
+        
+        return response_manager.success(
+            data={
+                "stats": stats,
+                "type": "system_stats"
+            },
+            message="系统统计信息获取成功"
+        )
+        
+    except VideoChateException:
+        raise
+    except Exception as e:
+        return response_manager.error(
+            message=f"获取系统统计失败: {str(e)}",
+            code=ErrorCodes.INTERNAL_ERROR
+        )
+
+
+@router.get("/version", summary="获取版本信息", response_model=StandardResponse)
 async def get_version():
     """
     获取系统版本和构建信息
@@ -276,7 +226,31 @@ async def get_version():
         )
 
 
-@router.get("/", summary="API根信息")
+@router.post("/maintenance/cleanup", summary="系统清理", response_model=StandardResponse)
+async def system_cleanup():
+    """
+    执行系统清理
+    
+    清理临时文件、过期缓存、无效任务等
+    """
+    try:
+        cleanup_result = await system_service.perform_cleanup()
+        
+        return response_manager.success(
+            data=cleanup_result,
+            message="系统清理完成"
+        )
+        
+    except VideoChateException:
+        raise
+    except Exception as e:
+        return response_manager.error(
+            message=f"系统清理失败: {str(e)}",
+            code=ErrorCodes.INTERNAL_ERROR
+        )
+
+
+@router.get("/", summary="API根信息", response_model=StandardResponse)
 async def api_root():
     """
     API根路径信息

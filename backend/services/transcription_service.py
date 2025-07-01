@@ -341,3 +341,134 @@ class TranscriptionService(BaseService):
             self._transcriptions_db[transcription_id]["updated_at"] = datetime.now().isoformat()
             return True
         return False
+    
+    async def get_transcription_list(
+        self, 
+        page: int = 1, 
+        page_size: int = 20,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> tuple[List[TranscriptionResult], int]:
+        """获取转录结果列表"""
+        all_transcriptions = list(self._transcriptions_db.values())
+        
+        # 应用筛选
+        if filters:
+            if filters.get("file_id"):
+                all_transcriptions = [t for t in all_transcriptions if t["file_id"] == filters["file_id"]]
+            if filters.get("language"):
+                all_transcriptions = [t for t in all_transcriptions if t["language"] == filters["language"]]
+            if filters.get("status"):
+                all_transcriptions = [t for t in all_transcriptions if t["status"] == filters["status"]]
+        
+        total = len(all_transcriptions)
+        
+        # 分页
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_transcriptions = all_transcriptions[start:end]
+        
+        # 转换为TranscriptionResult模型
+        result_list = []
+        for t_data in page_transcriptions:
+            result_list.append(TranscriptionResult(**t_data))
+        
+        return result_list, total
+    
+    async def get_transcription(self, transcription_id: str) -> Optional[TranscriptionResult]:
+        """获取转录结果"""
+        transcription_data = self._transcriptions_db.get(transcription_id)
+        if transcription_data:
+            return TranscriptionResult(**transcription_data)
+        return None
+    
+    async def export_transcription(self, transcription: TranscriptionResult, format: str) -> tuple[str, str, str]:
+        """导出转录结果"""
+        segments = transcription.segments
+        
+        if format == "txt":
+            content = "\n".join(seg.text for seg in segments)
+            content_type = "text/plain"
+        elif format == "srt":
+            content = self._generate_srt_content(segments)
+            content_type = "text/srt"
+        elif format == "vtt":
+            content = self._generate_vtt_content(segments)
+            content_type = "text/vtt"
+        elif format == "json":
+            import json
+            content = json.dumps([seg.model_dump() for seg in segments], ensure_ascii=False, indent=2)
+            content_type = "application/json"
+        else:
+            raise TranscriptionException(f"不支持的导出格式: {format}", ErrorCodes.INVALID_REQUEST)
+        
+        filename = f"transcription_{transcription.id}.{format}"
+        return content, content_type, filename
+    
+    async def get_transcription_stats(self) -> Dict[str, Any]:
+        """获取转录统计信息"""
+        all_transcriptions = list(self._transcriptions_db.values())
+        
+        stats = {
+            "total": len(all_transcriptions),
+            "by_language": {},
+            "by_status": {},
+            "total_duration": 0,
+            "avg_duration": 0
+        }
+        
+        # 按语言统计
+        languages = {}
+        for t in all_transcriptions:
+            lang = t.get("language", "unknown")
+            languages[lang] = languages.get(lang, 0) + 1
+        stats["by_language"] = languages
+        
+        # 按状态统计
+        statuses = {}
+        for t in all_transcriptions:
+            status = t.get("status", "unknown")
+            statuses[status] = statuses.get(status, 0) + 1
+        stats["by_status"] = statuses
+        
+        # 时长统计
+        total_duration = sum(t.get("duration", 0) for t in all_transcriptions)
+        stats["total_duration"] = total_duration
+        if len(all_transcriptions) > 0:
+            stats["avg_duration"] = total_duration / len(all_transcriptions)
+        
+        return stats
+    
+    async def search_transcriptions(
+        self,
+        search_filters: Dict[str, Any],
+        page: int = 1,
+        page_size: int = 20
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """搜索转录内容"""
+        query = search_filters.get("query", "")
+        file_id = search_filters.get("file_id")
+        
+        results = []
+        for transcription_id, transcription_data in self._transcriptions_db.items():
+            # 文件ID筛选
+            if file_id and transcription_data.get("file_id") != file_id:
+                continue
+            
+            # 在转录文本中搜索
+            for segment in transcription_data.get("segments", []):
+                if query.lower() in segment.get("text", "").lower():
+                    results.append({
+                        "transcription_id": transcription_id,
+                        "segment": segment,
+                        "file_id": transcription_data.get("file_id"),
+                        "language": transcription_data.get("language")
+                    })
+        
+        total = len(results)
+        
+        # 分页
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_results = results[start:end]
+        
+        return page_results, total
