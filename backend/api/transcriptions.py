@@ -35,16 +35,14 @@ async def get_transcriptions(
         filters = {}
         if file_id:
             filters["file_id"] = file_id
-        if language:
-            filters["language"] = language
         if status:
             filters["status"] = status
-        
+
         # 获取转录结果列表
         transcriptions, total = await transcription_service.get_transcription_list(
             page=page,
             page_size=page_size,
-            filters=filters
+            filters=filters if filters else None
         )
         
         return response_manager.paginated(

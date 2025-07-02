@@ -94,10 +94,16 @@ class ModelManager:
                     logging.info(f"⚠️ GPU检测失败: {e}")
 
                 logging.info("💻 使用CPU模式加载Whisper模型")
+                # 优化CPU性能配置
+                import os
+                cpu_threads = min(os.cpu_count() or 4, 8)  # 限制最大8线程避免过载
+                logging.info(f"🔧 CPU优化: 使用{cpu_threads}线程，float32精度")
                 return WhisperModel(
                     model_size,
                     device="cpu",
-                    compute_type="int8"
+                    compute_type="float32",  # 使用float32提高精度和性能
+                    cpu_threads=cpu_threads,  # 设置CPU线程数
+                    num_workers=2  # 设置工作进程数
                 )
             else:
                 # 使用指定设备
@@ -113,10 +119,15 @@ class ModelManager:
             logging.info(f"❌ 模型加载失败: {e}")
             # 降级到CPU模式
             logging.info("🔄 降级到CPU模式...")
+            import os
+            cpu_threads = min(os.cpu_count() or 4, 8)
+            logging.info(f"🔧 降级CPU优化: 使用{cpu_threads}线程")
             return WhisperModel(
                 model_size,
                 device="cpu",
-                compute_type="int8"
+                compute_type="float32",
+                cpu_threads=cpu_threads,
+                num_workers=2
             )
     
     async def _cleanup_loop(self):

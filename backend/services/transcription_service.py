@@ -128,7 +128,7 @@ class TranscriptionService(BaseService):
         self._model_loaded = True
         self.log_info("转录模型加载完成")
     
-    @cache_transcription_simple(ttl_seconds=7200)  # 缓存2小时
+    # @cache_transcription_simple(ttl_seconds=7200)  # 暂时禁用缓存
     async def _transcribe_audio(self, file_path: str, language: str) -> List[Dict[str, Any]]:
         """转录音频文件"""
         self.log_info(f"开始转录音频文件: {file_path}")
@@ -151,29 +151,45 @@ class TranscriptionService(BaseService):
         try:
             start_time = time.time()
 
+            # 性能监控
+            import psutil
+            initial_cpu = psutil.cpu_percent()
+            initial_memory = psutil.virtual_memory().percent
+            self.log_info(f"🔧 转录开始 - CPU: {initial_cpu:.1f}%, 内存: {initial_memory:.1f}%")
+
             # 获取Whisper模型
             model = await model_manager.get_model()
             self.log_info("✅ Whisper模型获取成功")
 
-            # 执行真实转录
-            segments_generator = model.transcribe(
+            # 执行真实转录 - 优化性能配置
+            segments_generator, info = model.transcribe(
                 file_path,
-                beam_size=5,
+                beam_size=3,  # 降低beam_size提高速度
                 language=language if language != "auto" else None,
-                vad_filter=True
+                vad_filter=True,
+                word_timestamps=True,  # 启用词级时间戳
+                condition_on_previous_text=False,  # 禁用上下文依赖提高并发性
+                temperature=0.0,  # 使用确定性输出
+                compression_ratio_threshold=2.4,  # 优化压缩比阈值
+                log_prob_threshold=-1.0,  # 优化概率阈值
+                no_speech_threshold=0.6  # 优化静音检测阈值
             )
 
             transcription = []
-            segments, _ = segments_generator  # info未使用，用_忽略
 
-            for i, segment in enumerate(segments):
+            for i, segment in enumerate(segments_generator):
+                # 处理置信度：将对数概率转换为0-1范围的置信度
+                raw_confidence = getattr(segment, 'avg_logprob', -0.5)
+                # 对数概率通常在-1到0之间，转换为0-1的置信度
+                confidence = max(0.0, min(1.0, (raw_confidence + 1.0)))
+
                 transcription.append({
                     "id": f"seg_{i}",
                     "start": segment.start,
                     "end": segment.end,
                     "text": segment.text.strip(),
                     "speaker": f"Speaker {(i % 2) + 1}",  # 简单的说话人分配
-                    "confidence": getattr(segment, 'avg_logprob', 0.85)  # 使用实际置信度或默认值
+                    "confidence": confidence  # 使用转换后的置信度值
                 })
 
                 # 让出控制权，允许其他任务执行
@@ -182,8 +198,20 @@ class TranscriptionService(BaseService):
             # 释放模型引用
             await model_manager.release_model()
 
+            # 性能统计
             processing_time = time.time() - start_time
-            self.log_info(f"音频转录完成: {len(transcription)}个片段, 耗时: {processing_time:.2f}秒")
+            final_cpu = psutil.cpu_percent()
+            final_memory = psutil.virtual_memory().percent
+
+            # 计算性能指标
+            segments_per_second = len(transcription) / processing_time if processing_time > 0 else 0
+
+            self.log_info(f"🎯 转录性能统计:")
+            self.log_info(f"   片段数量: {len(transcription)}")
+            self.log_info(f"   处理时间: {processing_time:.2f}秒")
+            self.log_info(f"   处理速度: {segments_per_second:.2f}片段/秒")
+            self.log_info(f"   CPU使用: {initial_cpu:.1f}% → {final_cpu:.1f}%")
+            self.log_info(f"   内存使用: {initial_memory:.1f}% → {final_memory:.1f}%")
 
             return transcription
 
@@ -211,32 +239,7 @@ class TranscriptionService(BaseService):
                 return transcription
         return None
     
-    async def get_transcription_list(
-        self, 
-        page: int = 1, 
-        page_size: int = 20,
-        status: Optional[str] = None,
-        file_id: Optional[str] = None
-    ) -> tuple[List[Dict[str, Any]], int]:
-        """获取转录结果列表"""
-        all_transcriptions = list(self._transcriptions_db.values())
-        
-        # 应用筛选
-        if status:
-            all_transcriptions = [t for t in all_transcriptions if t["status"] == status]
-        if file_id:
-            all_transcriptions = [t for t in all_transcriptions if t["file_id"] == file_id]
-        
-        # 按创建时间倒序排序
-        all_transcriptions.sort(key=lambda x: x["created_at"], reverse=True)
-        
-        # 分页
-        total = len(all_transcriptions)
-        start = (page - 1) * page_size
-        end = start + page_size
-        page_transcriptions = all_transcriptions[start:end]
-        
-        return page_transcriptions, total
+
     
     async def delete_transcription(self, transcription_id: str) -> bool:
         """删除转录结果"""

@@ -76,7 +76,7 @@ async def get_tasks(
         )
         
         return response_manager.paginated(
-            items=[task.model_dump(mode='json') for task in tasks],
+            items=tasks,  # tasks已经是字典列表，不需要model_dump
             total=total,
             page=page,
             page_size=page_size,

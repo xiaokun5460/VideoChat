@@ -173,17 +173,48 @@ class TaskService(BaseService):
 
             await self._update_task_progress(task_id, 30, "转录任务已创建")
 
-            # 等待转录完成（模拟）
-            for i in range(1, 8):
+            # 真正执行转录处理
+            await self._update_task_progress(task_id, 40, "开始音频转录")
+
+            # 启动转录处理（异步）
+            transcription_task = asyncio.create_task(
+                transcription_service._process_transcription(transcription_id, file_path, language)
+            )
+
+            # 监控转录进度
+            progress_step = 40
+            while not transcription_task.done():
                 # 检查任务是否被取消
                 current_task = self._tasks_db.get(task_id)
                 if current_task and current_task["status"] == TaskStatus.CANCELLED.value:
                     self.log_info(f"转录任务被取消: {task_id}")
+                    transcription_task.cancel()
                     return
 
-                await asyncio.sleep(2)  # 增加处理时间以便测试取消功能
-                progress = 30 + i * 8  # 30% 到 86%
-                await self._update_task_progress(task_id, progress, f"转录进行中 {i}/7")
+                # 更新进度（40% 到 90%）
+                await asyncio.sleep(2)
+                progress_step = min(90, progress_step + 10)
+                await self._update_task_progress(task_id, progress_step, "转录处理中...")
+
+                # 检查转录状态
+                transcription_data = await transcription_service.get_transcription_by_id(transcription_id)
+                if transcription_data:
+                    status = transcription_data.get("status", "processing")
+                    if status == "completed":
+                        break
+                    elif status == "failed":
+                        error_msg = transcription_data.get("error_message", "转录失败")
+                        raise TaskException(f"转录处理失败: {error_msg}", ErrorCodes.TRANSCRIPTION_FAILED)
+
+            # 等待转录任务完成
+            try:
+                await transcription_task
+                await self._update_task_progress(task_id, 90, "转录处理完成")
+            except asyncio.CancelledError:
+                self.log_info(f"转录任务被取消: {task_id}")
+                return
+            except Exception as e:
+                raise TaskException(f"转录处理异常: {str(e)}", ErrorCodes.TRANSCRIPTION_FAILED)
 
             # 保存转录ID到任务元数据
             self._tasks_db[task_id]["metadata"]["transcription_id"] = transcription_id

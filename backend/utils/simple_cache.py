@@ -214,9 +214,11 @@ class SimpleCacheManager:
                 # 异步函数装饰器
                 @wraps(func)
                 async def async_wrapper(*args, **kwargs):
-                    # 生成缓存键
+                    # 生成缓存键，跳过第一个参数（通常是self）
                     prefix = key_prefix or f"{func.__module__}.{func.__name__}"
-                    cache_key = self._generate_cache_key(prefix, *args, **kwargs)
+                    # 如果第一个参数看起来像是实例对象，跳过它
+                    cache_args = args[1:] if args and hasattr(args[0], '__dict__') else args
+                    cache_key = self._generate_cache_key(prefix, *cache_args, **kwargs)
 
                     # 尝试从缓存获取
                     cached_result = self.get(cache_key)
@@ -233,9 +235,11 @@ class SimpleCacheManager:
                 # 同步函数装饰器
                 @wraps(func)
                 def sync_wrapper(*args, **kwargs):
-                    # 生成缓存键
+                    # 生成缓存键，跳过第一个参数（通常是self）
                     prefix = key_prefix or f"{func.__module__}.{func.__name__}"
-                    cache_key = self._generate_cache_key(prefix, *args, **kwargs)
+                    # 如果第一个参数看起来像是实例对象，跳过它
+                    cache_args = args[1:] if args and hasattr(args[0], '__dict__') else args
+                    cache_key = self._generate_cache_key(prefix, *cache_args, **kwargs)
 
                     # 尝试从缓存获取
                     cached_result = self.get(cache_key)

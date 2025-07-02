@@ -301,10 +301,21 @@ class FileService(CRUDService):
             return None
 
         filename = os.path.basename(file_data.url)
-        file_path = os.path.join(settings.upload_dir, filename)
 
-        if os.path.exists(file_path):
-            return file_path
+        # 尝试多个可能的路径
+        possible_paths = [
+            os.path.join(settings.upload_dir, filename),  # backend/uploads/filename
+            os.path.join("..", settings.upload_dir, filename),  # ../uploads/filename
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), settings.upload_dir, filename),  # 项目根目录/uploads/filename
+            filename  # 直接使用文件名（如果在当前目录）
+        ]
+
+        for file_path in possible_paths:
+            if os.path.exists(file_path):
+                self.log_info(f"找到文件路径: {file_path}")
+                return os.path.abspath(file_path)
+
+        self.log_error(f"文件不存在，尝试的路径: {possible_paths}")
         return None
     
     async def update_file_status(self, file_id: str, status: FileStatus) -> bool:
